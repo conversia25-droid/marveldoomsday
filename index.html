@@ -34,6 +34,9 @@ const SUPABASE_URL = RD_CONFIG.SUPABASE_URL || RD_CONFIG.NEXT_PUBLIC_SUPABASE_UR
 const SUPABASE_ANON_KEY = RD_CONFIG.SUPABASE_ANON_KEY || RD_CONFIG.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const POSTER_MANIFEST_URL = "/posters.json";
 const TMDB_TOKEN = ""; // use só em ambiente privado; em produção prefira gerar posters.json
+const AVATAR_BUCKET = "avatars";
+const AVATAR_MAX_SIZE = 2 * 1024 * 1024;
+const AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 /* ================================================== */
 
 const C = {
@@ -181,6 +184,7 @@ const I = {
   clock: () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>),
   branch: () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="6" cy="5" r="2.5"/><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 7.5v9M8 6.2c5 1 7.5 2.8 7.6 5.8"/></svg>),
   cloud: (p) => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={p.color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A7 7 0 0 0 4.3 12.5 4 4 0 0 0 6 19z"/>{p.ok && <path d="M9 13.5l2 2 4-4"/>}</svg>),
+  download: () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>),
   close: () => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>),
 };
 
@@ -733,7 +737,7 @@ function LoginScreen({
   );
 }
 
-function ProfileModal({ form, message, saving, onChange, onSave, onClose }) {
+function ProfileModal({ form, message, saving, uploadingAvatar, onChange, onAvatarFile, onSave, onClose }) {
   const inputStyle = {
     width: "100%", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 11px",
     background: C.void, color: C.text, fontSize: 14, outline: "none",
@@ -776,9 +780,24 @@ function ProfileModal({ form, message, saving, onChange, onSave, onClose }) {
         <input value={form.display_name} onChange={(e) => onChange("display_name", e.target.value)}
           maxLength={80} placeholder="Como seus amigos vao te ver" style={inputStyle} />
 
-        <label style={labelStyle}>Foto / avatar URL</label>
-        <input value={form.avatar_url} onChange={(e) => onChange("avatar_url", e.target.value)}
-          maxLength={500} placeholder="https://..." style={inputStyle} />
+        <label style={labelStyle}>Foto / avatar</label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8, alignItems: "stretch" }}>
+          <input value={form.avatar_url} onChange={(e) => onChange("avatar_url", e.target.value)}
+            maxLength={500} placeholder="https://..." style={{ ...inputStyle, minWidth: 0 }} />
+          <label style={{ border: `1px solid ${C.doom}77`, background: `${C.doom}18`, color: C.text,
+            borderRadius: 10, padding: "0 11px", minHeight: 41, display: "inline-flex", alignItems: "center",
+            justifyContent: "center", cursor: (saving || uploadingAvatar) ? "default" : "pointer",
+            opacity: (saving || uploadingAvatar) ? .65 : 1, fontSize: 12.5, fontWeight: 800, whiteSpace: "nowrap" }}>
+            {uploadingAvatar ? "Enviando..." : "Enviar foto"}
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={saving || uploadingAvatar}
+              onChange={(e) => {
+                const file = e.target.files && e.target.files[0];
+                e.target.value = "";
+                if (file) onAvatarFile(file);
+              }}
+              style={{ display: "none" }} />
+          </label>
+        </div>
 
         <label style={labelStyle}>Bio curta</label>
         <textarea value={form.bio} onChange={(e) => onChange("bio", e.target.value)}
@@ -804,11 +823,11 @@ function ProfileModal({ form, message, saving, onChange, onSave, onClose }) {
               borderRadius: 9, padding: "9px 12px", cursor: "pointer" }}>
             Cancelar
           </button>
-          <button type="submit" disabled={saving}
+          <button type="submit" disabled={saving || uploadingAvatar}
             style={{ border: "none", background: C.doom, color: C.void, borderRadius: 9,
-              padding: "9px 13px", cursor: saving ? "default" : "pointer", fontWeight: 800,
-              opacity: saving ? .7 : 1 }}>
-            {saving ? "Salvando..." : "Salvar perfil"}
+              padding: "9px 13px", cursor: (saving || uploadingAvatar) ? "default" : "pointer", fontWeight: 800,
+              opacity: (saving || uploadingAvatar) ? .7 : 1 }}>
+            {uploadingAvatar ? "Enviando foto..." : saving ? "Salvando..." : "Salvar perfil"}
           </button>
         </div>
       </form>
@@ -862,6 +881,9 @@ function App() {
   const [profileForm, setProfileForm] = useState(() => profileToForm(null, null));
   const [profileMessage, setProfileMessage] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
+  const [profileUploading, setProfileUploading] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [canInstallPwa, setCanInstallPwa] = useState(false);
   const [watched, setWatched] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem("rd_watched") || "[]")); } catch { return new Set(); }
   });
@@ -896,10 +918,29 @@ function App() {
   }, [posterPreview]);
 
   useEffect(() => {
+    const onBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+      setCanInstallPwa(true);
+    };
+    const onAppInstalled = () => {
+      setInstallPrompt(null);
+      setCanInstallPwa(false);
+    };
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    window.addEventListener("appinstalled", onAppInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", onAppInstalled);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!routeClient || !session) {
       setProfile(null);
       setProfileOpen(false);
       setProfileMessage("");
+      setProfileUploading(false);
       setProfileForm(profileToForm(null, session));
       return;
     }
@@ -1143,6 +1184,36 @@ function App() {
     setProfileOpen(true);
   };
 
+  const uploadAvatar = async (file) => {
+    if (!routeClient || !session || !file) return;
+    if (!AVATAR_TYPES.has(file.type)) {
+      setProfileMessage("Use uma imagem JPG, PNG, WEBP ou GIF.");
+      return;
+    }
+    if (file.size > AVATAR_MAX_SIZE) {
+      setProfileMessage("A foto precisa ter no maximo 2 MB.");
+      return;
+    }
+
+    setProfileUploading(true);
+    setProfileMessage("Enviando foto...");
+    const extension = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 6) || "jpg";
+    const path = `${session.user.id}/avatar-${Date.now()}.${extension}`;
+    const { error } = await routeClient.storage
+      .from(AVATAR_BUCKET)
+      .upload(path, file, { cacheControl: "3600", contentType: file.type, upsert: true });
+
+    setProfileUploading(false);
+    if (error) {
+      setProfileMessage("Rode o schema atualizado no Supabase para criar o bucket de fotos.");
+      return;
+    }
+
+    const { data } = routeClient.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+    setProfileForm((current) => ({ ...current, avatar_url: data.publicUrl || "" }));
+    setProfileMessage("Foto enviada. Salve o perfil para confirmar.");
+  };
+
   const saveProfile = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!routeClient || !session) return;
@@ -1169,6 +1240,14 @@ function App() {
     setProfileMessage("Perfil salvo.");
   };
 
+  const installPwa = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    try { await installPrompt.userChoice; } catch (_) {}
+    setInstallPrompt(null);
+    setCanInstallPwa(false);
+  };
+
   const signOut = async () => {
     if (!routeClient) return;
     await routeClient.auth.signOut();
@@ -1177,6 +1256,7 @@ function App() {
     setAuthPassword("");
     setProfile(null);
     setProfileOpen(false);
+    setProfileUploading(false);
     setSyncState("modo local");
   };
 
@@ -1296,19 +1376,29 @@ function App() {
             </span>
           </div>
           <Bar frac={stats.totV ? stats.doneV / stats.totV : 0} color={C.mcu} />
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12.5, color: C.muted }}>
               Essenciais p/ o Doomsday: <b style={{ color: doomReady ? C.doom : C.gold }}>{stats.essD}/{stats.essT}</b>
               <span style={{ marginLeft: 8, color: routeSource === "supabase" ? C.doom : C.muted }}>
                 · {routeSource === "supabase" ? "Supabase" : "local"}
               </span>
             </span>
-            <button onClick={resetAll}
-              style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent",
-                border: `1px solid ${C.line}`, color: C.muted, fontSize: 12, padding: "5px 10px",
-                borderRadius: 8, cursor: "pointer" }}>
-              <I.reset /> Zerar
-            </button>
+            <span style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {canInstallPwa && (
+                <button type="button" onClick={installPwa}
+                  style={{ display: "flex", alignItems: "center", gap: 5, background: `${C.doom}18`,
+                    border: `1px solid ${C.doom}77`, color: C.text, fontSize: 12, padding: "5px 10px",
+                    borderRadius: 8, cursor: "pointer" }}>
+                  <I.download /> Instalar
+                </button>
+              )}
+              <button onClick={resetAll}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent",
+                  border: `1px solid ${C.line}`, color: C.muted, fontSize: 12, padding: "5px 10px",
+                  borderRadius: 8, cursor: "pointer" }}>
+                <I.reset /> Zerar
+              </button>
+            </span>
           </div>
           <AuthBox
             enabled={!!routeClient}
@@ -1583,7 +1673,9 @@ function App() {
           form={profileForm}
           message={profileMessage}
           saving={profileSaving}
+          uploadingAvatar={profileUploading}
           onChange={changeProfileField}
+          onAvatarFile={uploadAvatar}
           onSave={saveProfile}
           onClose={() => setProfileOpen(false)}
         />
@@ -1650,6 +1742,12 @@ function TreeMap({ branchFrac, onPick, doomReady, essDone }) {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/pwa-sw.js").catch(() => {});
+  });
+}
 </script>
 </body>
 </html>

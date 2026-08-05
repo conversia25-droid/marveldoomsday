@@ -18,6 +18,14 @@ Checklist da maratona Marvel até Vingadores: Doomsday (18/12/2026).
 
 Acesse http://localhost:8080
 
+## PWA
+
+O app ja vem com manifest, icones e service worker. Em HTTPS, como no dominio do EasyPanel, o navegador pode oferecer instalacao como aplicativo.
+
+- No Chrome/Android/desktop, o botao **Instalar** aparece dentro do app quando o navegador liberar.
+- No iPhone/iPad, use **Compartilhar -> Adicionar a Tela de Inicio**.
+- O cache offline cobre a tela principal, manifest, icones, `config.js` e `posters.json`. Login, sincronizacao e capas externas continuam dependendo de internet.
+
 ## Gerar capas com TMDB
 
 Use o **Token de Leitura da API** do TMDB como variavel de ambiente. Nao coloque o token no `index.html` antes de publicar.
@@ -77,6 +85,8 @@ Fluxo no app:
 - O botao **Entrar sem conta** abre a rota em modo visitante e salva progresso só no navegador.
 
 Para habilitar/atualizar perfis, rode `supabase/schema.sql` novamente. Ele adiciona campos em `profiles` e cria a RPC `update_own_profile`, que permite ao usuario editar só os campos seguros do proprio perfil, sem mexer em `role`.
+
+O mesmo schema tambem cria o bucket publico `avatars` no Supabase Storage. Cada usuario autenticado so consegue enviar, atualizar ou apagar arquivos dentro da propria pasta, e o app aceita JPG, PNG, WEBP ou GIF ate 2 MB.
 
 ### Login com Google
 
