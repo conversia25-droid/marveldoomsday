@@ -511,8 +511,7 @@ async function loadRouteFromSupabase(client) {
 }
 
 function AuthBox({
-  enabled, session, email, password, message, syncState,
-  onEmail, onPassword, onSignIn, onSignUp, onSignOut,
+  enabled, session, syncState, onSignOut, onOpenLogin,
 }) {
   if (!enabled) {
     return (
@@ -540,31 +539,106 @@ function AuthBox({
   }
 
   return (
-    <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.line}` }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <input value={email} onChange={(e) => onEmail(e.target.value)} placeholder="email"
-          autoComplete="email"
-          style={{ minWidth: 0, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 10px",
-            background: C.void, color: C.text, fontSize: 13 }} />
-        <input value={password} onChange={(e) => onPassword(e.target.value)} placeholder="senha"
-          autoComplete="current-password" type="password"
-          style={{ minWidth: 0, border: `1px solid ${C.line}`, borderRadius: 8, padding: "8px 10px",
-            background: C.void, color: C.text, fontSize: 13 }} />
+    <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.line}`,
+      display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <span style={{ flex: 1, minWidth: 180, fontSize: 12.5, color: C.muted }}>
+        Visitante · progresso salvo só neste aparelho
+        {syncState && <span> · {syncState}</span>}
+      </span>
+      <button type="button" onClick={onOpenLogin}
+        style={{ border: `1px solid ${C.doom}77`, background: `${C.doom}18`, color: C.text,
+          borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 12 }}>
+        Entrar para sincronizar
+      </button>
+    </div>
+  );
+}
+
+function LoginScreen({
+  email, password, message, syncState, loading,
+  onEmail, onPassword, onSignIn, onSignUp, onGuest,
+}) {
+  const inputStyle = {
+    width: "100%", border: `1px solid ${C.line}`, borderRadius: 10, padding: "12px 12px",
+    background: C.void, color: C.text, fontSize: 15, outline: "none",
+  };
+  const primaryButton = {
+    border: "none", background: C.doom, color: C.void, borderRadius: 10,
+    padding: "12px 14px", cursor: loading ? "default" : "pointer", fontWeight: 800, fontSize: 14,
+    opacity: loading ? .7 : 1,
+  };
+  const secondaryButton = {
+    border: `1px solid ${C.line}`, background: "transparent", color: C.text, borderRadius: 10,
+    padding: "12px 14px", cursor: loading ? "default" : "pointer", fontWeight: 700, fontSize: 14,
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.void, color: C.text, position: "relative", overflow: "hidden" }}>
+      <style>{`
+        .osw { font-family: 'Oswald', system-ui, sans-serif; }
+        .inr { font-family: 'Inter', system-ui, sans-serif; }
+        @keyframes twinkle { 0%,100% { opacity: var(--o); } 50% { opacity: calc(var(--o) * .25); } }
+        @keyframes pulseGlow { 0%,100% { filter: drop-shadow(0 0 8px currentColor); } 50% { filter: drop-shadow(0 0 20px currentColor); } }
+        @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+      `}</style>
+
+      <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
+        <div style={{ position: "absolute", inset: 0,
+          background: `radial-gradient(58% 42% at 50% -4%, #E5484D30, transparent 62%),
+                       radial-gradient(46% 36% at 90% 36%, #8B7BFF24, transparent 62%),
+                       radial-gradient(46% 38% at 8% 78%, #2DD4BF1C, transparent 62%)` }} />
+        {STARS.map((st, i) => (
+          <span key={i} style={{ position: "absolute", left: `${st.x}%`, top: `${st.y}%`,
+            width: st.s, height: st.s, borderRadius: 4, background: st.c,
+            boxShadow: st.s > 2 ? `0 0 4px ${st.c}` : "none",
+            "--o": st.o, opacity: st.o, animation: `twinkle ${st.d}s ease-in-out infinite` }} />
+        ))}
       </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <button type="button" onClick={onSignIn}
-          style={{ border: "none", background: C.doom, color: C.void, borderRadius: 8,
-            padding: "7px 12px", cursor: "pointer", fontWeight: 700, fontSize: 12.5 }}>
-          Entrar
-        </button>
-        <button type="button" onClick={onSignUp}
-          style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.text,
-            borderRadius: 8, padding: "7px 12px", cursor: "pointer", fontSize: 12.5 }}>
-          Criar conta
-        </button>
-        {(message || syncState) && (
-          <span style={{ color: message ? C.gold : C.muted, fontSize: 12 }}>{message || syncState}</span>
-        )}
+
+      <div className="inr" style={{ minHeight: "100vh", display: "grid", placeItems: "center",
+        padding: 18, position: "relative", zIndex: 1 }}>
+        <main style={{ width: "min(100%, 430px)" }}>
+          <div style={{ textAlign: "center", marginBottom: 18 }}>
+            <I.zap size={32} color={C.gold} style={{ animation: "pulseGlow 2.8s ease-in-out infinite", color: C.gold }} />
+            <div className="osw" style={{ marginTop: 8, fontSize: 12, letterSpacing: 4, color: C.gold, textTransform: "uppercase" }}>
+              Rota até o fim do multiverso
+            </div>
+            <h1 className="osw" style={{ fontSize: 42, lineHeight: 0.98, margin: "8px 0 6px", fontWeight: 700,
+              letterSpacing: 1, textTransform: "uppercase",
+              background: `linear-gradient(180deg, ${C.text}, #C9C2E5 58%, ${C.mcu})`,
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Vingadores<br/>Doomsday
+            </h1>
+            <div style={{ color: C.muted, fontSize: 13 }}>Entre para salvar seu progresso na nuvem.</div>
+          </div>
+
+          <form onSubmit={onSignIn}
+            style={{ border: `1px solid ${C.line}`, borderRadius: 16, padding: 16,
+              background: `linear-gradient(160deg, ${C.panel2}, ${C.panel})`, boxShadow: "0 18px 50px #00000077" }}>
+            <label style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6 }}>Email</label>
+            <input value={email} onChange={(e) => onEmail(e.target.value)} placeholder="seu@email.com"
+              autoComplete="email" inputMode="email" style={inputStyle} />
+            <label style={{ display: "block", fontSize: 12, color: C.muted, margin: "12px 0 6px" }}>Senha</label>
+            <input value={password} onChange={(e) => onPassword(e.target.value)} placeholder="sua senha"
+              autoComplete="current-password" type="password" style={inputStyle} />
+
+            {(message || syncState) && (
+              <div style={{ marginTop: 10, color: message ? C.gold : C.muted, fontSize: 12.5, lineHeight: 1.45 }}>
+                {message || syncState}
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 14 }}>
+              <button type="submit" disabled={loading} style={primaryButton}>Entrar</button>
+              <button type="button" disabled={loading} onClick={onSignUp} style={secondaryButton}>Criar conta</button>
+            </div>
+            <button type="button" onClick={onGuest}
+              style={{ width: "100%", marginTop: 9, border: "none", background: "transparent", color: C.muted,
+                padding: "8px 10px", cursor: "pointer", fontSize: 12.5 }}>
+              Entrar sem conta
+            </button>
+          </form>
+        </main>
       </div>
     </div>
   );
@@ -605,6 +679,9 @@ function App() {
   const [routeSource, setRouteSource] = useState("local");
   const [syncState, setSyncState] = useState("");
   const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(() => !routeClient);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [guestMode, setGuestMode] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
@@ -642,15 +719,26 @@ function App() {
   }, [posterPreview]);
 
   useEffect(() => {
-    if (!routeClient) return;
+    if (!routeClient) {
+      setAuthReady(true);
+      return;
+    }
     let alive = true;
 
-    routeClient.auth.getSession().then(({ data }) => {
-      if (alive) setSession(data.session || null);
-    });
+    routeClient.auth.getSession()
+      .then(({ data }) => {
+        if (!alive) return;
+        setSession(data.session || null);
+        setAuthReady(true);
+      })
+      .catch(() => {
+        if (alive) setAuthReady(true);
+      });
 
     const { data } = routeClient.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession || null);
+      if (nextSession) setGuestMode(false);
+      setAuthReady(true);
       setAuthMessage("");
     });
 
@@ -791,24 +879,40 @@ function App() {
     }
   };
 
-  const signIn = async () => {
+  const signIn = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!routeClient) return;
+    if (!authEmail.trim() || !authPassword) {
+      setAuthMessage("Informe email e senha para entrar.");
+      return;
+    }
     setAuthMessage("");
+    setAuthLoading(true);
     const { error } = await routeClient.auth.signInWithPassword({ email: authEmail.trim(), password: authPassword });
+    if (!error) setGuestMode(false);
     setAuthMessage(error ? error.message : "Conectado");
+    setAuthLoading(false);
   };
 
-  const signUp = async () => {
+  const signUp = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!routeClient) return;
+    if (!authEmail.trim() || !authPassword) {
+      setAuthMessage("Informe email e senha para criar a conta.");
+      return;
+    }
     setAuthMessage("");
+    setAuthLoading(true);
     const { error } = await routeClient.auth.signUp({ email: authEmail.trim(), password: authPassword });
     setAuthMessage(error ? error.message : "Conta criada; confira o email se pedir confirmacao");
+    setAuthLoading(false);
   };
 
   const signOut = async () => {
     if (!routeClient) return;
     await routeClient.auth.signOut();
     setSession(null);
+    setGuestMode(false);
     setAuthPassword("");
     setSyncState("modo local");
   };
@@ -847,6 +951,23 @@ function App() {
   const essDone = stats.essT ? stats.essD / stats.essT : 0;
   const doomReady = stats.essD >= stats.essT && stats.essT > 0;
   const eraLabel = (cy) => (cy < 2000 ? `${Math.floor(cy)}` : `~${Math.floor(cy)}`);
+
+  if (routeClient && (!authReady || (!session && !guestMode))) {
+    return (
+      <LoginScreen
+        email={authEmail}
+        password={authPassword}
+        message={authMessage}
+        syncState={!authReady ? "verificando sessao" : syncState}
+        loading={authLoading || !authReady}
+        onEmail={setAuthEmail}
+        onPassword={setAuthPassword}
+        onSignIn={signIn}
+        onSignUp={signUp}
+        onGuest={() => { setGuestMode(true); setAuthMessage(""); }}
+      />
+    );
+  }
 
   return (
     <div style={{ background: C.void, color: C.text, minHeight: "100vh", position: "relative", overflow: "hidden" }}>
@@ -928,15 +1049,9 @@ function App() {
           <AuthBox
             enabled={!!routeClient}
             session={session}
-            email={authEmail}
-            password={authPassword}
-            message={authMessage}
             syncState={syncState}
-            onEmail={setAuthEmail}
-            onPassword={setAuthPassword}
-            onSignIn={signIn}
-            onSignUp={signUp}
             onSignOut={signOut}
+            onOpenLogin={() => { setGuestMode(false); setAuthMessage(""); }}
           />
         </div>
 
