@@ -556,7 +556,7 @@ function AuthBox({
 
 function LoginScreen({
   email, password, message, syncState, loading,
-  onEmail, onPassword, onSignIn, onSignUp, onGuest,
+  onEmail, onPassword, onSignIn, onSignUp, onGoogle, onGuest,
 }) {
   const inputStyle = {
     width: "100%", border: `1px solid ${C.line}`, borderRadius: 10, padding: "12px 12px",
@@ -615,6 +615,24 @@ function LoginScreen({
           <form onSubmit={onSignIn}
             style={{ border: `1px solid ${C.line}`, borderRadius: 16, padding: 16,
               background: `linear-gradient(160deg, ${C.panel2}, ${C.panel})`, boxShadow: "0 18px 50px #00000077" }}>
+            <button type="button" onClick={onGoogle} disabled={loading}
+              style={{ width: "100%", border: `1px solid ${C.text}33`, background: "#FFFFFF",
+                color: "#1F1F1F", borderRadius: 10, padding: "12px 14px", cursor: loading ? "default" : "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                fontWeight: 800, fontSize: 14, opacity: loading ? .75 : 1 }}>
+              <span className="osw" style={{ width: 20, height: 20, borderRadius: 999, display: "inline-flex",
+                alignItems: "center", justifyContent: "center", color: "#4285F4", fontSize: 18, fontWeight: 700 }}>
+                G
+              </span>
+              Entrar com Google
+            </button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "14px 0" }}>
+              <span style={{ height: 1, flex: 1, background: C.line }} />
+              <span style={{ color: C.muted, fontSize: 11, textTransform: "uppercase", letterSpacing: 1.6 }}>ou</span>
+              <span style={{ height: 1, flex: 1, background: C.line }} />
+            </div>
+
             <label style={{ display: "block", fontSize: 12, color: C.muted, marginBottom: 6 }}>Email</label>
             <input value={email} onChange={(e) => onEmail(e.target.value)} placeholder="seu@email.com"
               autoComplete="email" inputMode="email" style={inputStyle} />
@@ -908,6 +926,21 @@ function App() {
     setAuthLoading(false);
   };
 
+  const signInWithGoogle = async () => {
+    if (!routeClient) return;
+    setAuthMessage("");
+    setAuthLoading(true);
+    const redirectTo = `${window.location.origin}${window.location.pathname}`;
+    const { error } = await routeClient.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    if (error) {
+      setAuthMessage(error.message);
+      setAuthLoading(false);
+    }
+  };
+
   const signOut = async () => {
     if (!routeClient) return;
     await routeClient.auth.signOut();
@@ -964,6 +997,7 @@ function App() {
         onPassword={setAuthPassword}
         onSignIn={signIn}
         onSignUp={signUp}
+        onGoogle={signInWithGoogle}
         onGuest={() => { setGuestMode(true); setAuthMessage(""); }}
       />
     );

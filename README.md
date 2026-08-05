@@ -70,9 +70,23 @@ O `anon key` fica publico no navegador; isso e esperado no Supabase. Nao use `se
 Fluxo no app:
 
 - A primeira tela pede login por email/senha.
+- O botao **Entrar com Google** usa o provider Google do Supabase.
 - Ao entrar, o progresso local e enviado para `watch_progress`.
 - Depois disso, cada item marcado/desmarcado e salvo no Supabase.
 - O botao **Entrar sem conta** abre a rota em modo visitante e salva progresso só no navegador.
+
+### Login com Google
+
+No Supabase, va em **Authentication -> Sign In / Providers -> Google** e habilite o provider.
+
+No Google Cloud, crie um OAuth Client do tipo **Web application**:
+
+- **Authorized JavaScript origins**: a URL do seu site, e para teste local `http://127.0.0.1:8765`
+- **Authorized redirect URIs**: a callback do Supabase, normalmente `https://keqvvdbaninwqwktwuyi.supabase.co/auth/v1/callback`
+
+Depois cole o **Client ID** e **Client Secret** no provider Google do Supabase.
+
+Em **Authentication -> URL Configuration**, coloque a URL final do site em **Site URL** e adicione tambem a URL local em **Redirect URLs** se for testar no navegador local.
 
 ### Variaveis no EasyPanel
 
