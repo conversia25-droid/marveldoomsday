@@ -17,3 +17,21 @@ Checklist da maratona Marvel até Vingadores: Doomsday (18/12/2026).
     docker run -p 8080:80 rota-doomsday
 
 Acesse http://localhost:8080
+
+## Gerar capas com TMDB
+
+Use o **Token de Leitura da API** do TMDB como variavel de ambiente. Nao coloque o token no `index.html` antes de publicar.
+
+    $env:TMDB_TOKEN="seu_token_v4"
+    node generate-posters.mjs
+
+O script atualiza `posters.json`, e o site carrega esse arquivo automaticamente.
+
+### Variaveis no EasyPanel
+
+Em site estatico, variaveis do EasyPanel ficam no container/nginx, nao no navegador. Para usar o token sem expor, use uma destas rotas:
+
+1. Gere `posters.json` antes do deploy e publique só o JSON pronto.
+2. Crie um endpoint/proxy no servidor que leia `TMDB_TOKEN` e consulte o TMDB por tras.
+
+Injetar `TMDB_TOKEN` no HTML funciona, mas deixa a chave publica.

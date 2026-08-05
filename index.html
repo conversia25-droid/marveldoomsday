@@ -27,7 +27,8 @@
 const { useState, useEffect, useMemo, useRef } = React;
 
 /* ================== CONFIGURAÇÃO ================== */
-const TMDB_TOKEN = ""; // ← cole aqui o API Read Access Token (v4) do TMDB pra ativar os pôsteres oficiais
+const POSTER_MANIFEST_URL = "/posters.json";
+const TMDB_TOKEN = ""; // use só em ambiente privado; em produção prefira gerar posters.json
 /* ================================================== */
 
 const C = {
@@ -410,6 +411,26 @@ function Countdown() {
 const posterCache = (() => { try { return JSON.parse(localStorage.getItem("rd_posters") || "{}"); } catch { return {}; } })();
 function savePosterCache() { try { localStorage.setItem("rd_posters", JSON.stringify(posterCache)); } catch {} }
 
+async function loadPosterManifest() {
+  if (!POSTER_MANIFEST_URL) return false;
+  try {
+    const r = await fetch(POSTER_MANIFEST_URL, { cache: "no-store" });
+    if (!r.ok) return false;
+    const data = await r.json();
+    const map = data && data.posters ? data.posters : data;
+    if (!map || typeof map !== "object") return false;
+    let changed = false;
+    Object.keys(map).forEach((id) => {
+      if (map[id] && posterCache[id] !== map[id]) {
+        posterCache[id] = map[id];
+        changed = true;
+      }
+    });
+    if (changed) savePosterCache();
+    return changed;
+  } catch { return false; }
+}
+
 async function fetchPoster(it) {
   if (!TMDB_TOKEN) return null;
   if (posterCache[it.id] !== undefined) return posterCache[it.id];
@@ -461,9 +482,11 @@ function App() {
 
   /* pôsteres TMDB */
   useEffect(() => {
-    if (!TMDB_TOKEN) return;
     let alive = true;
     (async () => {
+      const loaded = await loadPosterManifest();
+      if (alive && loaded) setPosters({ ...posterCache });
+      if (!TMDB_TOKEN) return;
       const all = [];
       BRANCHES.forEach((b) => b.items.forEach((it) => all.push(it)));
       for (const it of all) {
