@@ -15,10 +15,19 @@ $$;
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
+  display_name text,
+  avatar_url text,
+  bio text,
+  share_public boolean not null default false,
   role text not null default 'viewer' check (role in ('viewer', 'admin')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists display_name text;
+alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists bio text;
+alter table public.profiles add column if not exists share_public boolean not null default false;
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -27,10 +36,57 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email)
-  values (new.id, new.email)
-  on conflict (id) do update set email = excluded.email;
+  insert into public.profiles (id, email, display_name, avatar_url)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name'),
+    coalesce(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture')
+  )
+  on conflict (id) do update set
+    email = excluded.email,
+    display_name = coalesce(public.profiles.display_name, excluded.display_name),
+    avatar_url = coalesce(public.profiles.avatar_url, excluded.avatar_url);
   return new;
+end;
+$$;
+
+create or replace function public.update_own_profile(
+  p_display_name text,
+  p_avatar_url text,
+  p_bio text,
+  p_share_public boolean
+)
+returns public.profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  result public.profiles;
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  insert into public.profiles (id, email, display_name, avatar_url, bio, share_public)
+  values (
+    auth.uid(),
+    auth.jwt()->>'email',
+    left(nullif(trim(coalesce(p_display_name, '')), ''), 80),
+    left(nullif(trim(coalesce(p_avatar_url, '')), ''), 500),
+    left(nullif(trim(coalesce(p_bio, '')), ''), 220),
+    coalesce(p_share_public, false)
+  )
+  on conflict (id) do update set
+    email = coalesce(excluded.email, public.profiles.email),
+    display_name = excluded.display_name,
+    avatar_url = excluded.avatar_url,
+    bio = excluded.bio,
+    share_public = excluded.share_public
+  returning * into result;
+
+  return result;
 end;
 $$;
 
@@ -125,9 +181,10 @@ alter table public.movies enable row level security;
 alter table public.watch_progress enable row level security;
 
 drop policy if exists "profiles select own or admin" on public.profiles;
-create policy "profiles select own or admin"
+drop policy if exists "profiles select own public or admin" on public.profiles;
+create policy "profiles select own public or admin"
 on public.profiles for select
-using (id = auth.uid() or public.is_route_admin());
+using (share_public = true or id = auth.uid() or public.is_route_admin());
 
 drop policy if exists "profiles admin update" on public.profiles;
 create policy "profiles admin update"
@@ -181,7 +238,9 @@ using (user_id = auth.uid());
 grant usage on schema public to anon, authenticated;
 grant select on public.branches, public.movies to anon, authenticated;
 grant insert, update, delete on public.branches, public.movies to authenticated;
-grant select, update on public.profiles to authenticated;
+grant select on public.profiles to anon, authenticated;
+grant update on public.profiles to authenticated;
+grant execute on function public.update_own_profile(text, text, text, boolean) to authenticated;
 grant select, insert, update, delete on public.watch_progress to authenticated;
 
 do $$

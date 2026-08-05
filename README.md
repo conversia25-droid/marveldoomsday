@@ -73,7 +73,10 @@ Fluxo no app:
 - O botao **Entrar com Google** usa o provider Google do Supabase.
 - Ao entrar, o progresso local e enviado para `watch_progress`.
 - Depois disso, cada item marcado/desmarcado e salvo no Supabase.
+- Usuarios logados podem editar nome, avatar, bio e deixar o perfil publico para recursos sociais futuros.
 - O botao **Entrar sem conta** abre a rota em modo visitante e salva progresso só no navegador.
+
+Para habilitar/atualizar perfis, rode `supabase/schema.sql` novamente. Ele adiciona campos em `profiles` e cria a RPC `update_own_profile`, que permite ao usuario editar só os campos seguros do proprio perfil, sem mexer em `role`.
 
 ### Login com Google
 

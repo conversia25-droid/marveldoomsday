@@ -540,8 +540,31 @@ async function loadRouteFromSupabase(client) {
   return rowsToBranches(branchRows || [], movieRows || []);
 }
 
+function profileFromSession(session) {
+  const meta = session?.user?.user_metadata || {};
+  return {
+    id: session?.user?.id || "",
+    email: session?.user?.email || "",
+    display_name: meta.full_name || meta.name || session?.user?.email || "",
+    avatar_url: meta.avatar_url || meta.picture || "",
+    bio: "",
+    share_public: false,
+  };
+}
+
+function profileToForm(profile, session) {
+  const fallback = profileFromSession(session);
+  const source = profile || fallback;
+  return {
+    display_name: source.display_name || fallback.display_name || "",
+    avatar_url: source.avatar_url || fallback.avatar_url || "",
+    bio: source.bio || "",
+    share_public: !!source.share_public,
+  };
+}
+
 function AuthBox({
-  enabled, session, syncState, onSignOut, onOpenLogin,
+  enabled, session, profile, syncState, onSignOut, onOpenLogin, onEditProfile,
 }) {
   if (!enabled) {
     return (
@@ -552,13 +575,31 @@ function AuthBox({
   }
 
   if (session) {
+    const fallback = profileFromSession(session);
+    const displayName = profile?.display_name || fallback.display_name || session.user.email;
+    const avatarUrl = profile?.avatar_url || fallback.avatar_url;
+    const initial = (displayName || session.user.email || "?").trim().slice(0, 1).toUpperCase();
     return (
       <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.line}`,
         display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span aria-hidden style={{ width: 34, height: 34, borderRadius: 999, overflow: "hidden",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          background: `linear-gradient(135deg, ${C.doom}, ${C.spider})`, color: C.void,
+          fontWeight: 800, flexShrink: 0, boxShadow: `0 0 12px ${C.doom}33` }}>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : initial}
+        </span>
         <span style={{ flex: 1, minWidth: 180, fontSize: 12.5, color: C.muted }}>
-          Online · <b style={{ color: C.text }}>{session.user.email}</b>
+          Online · <b style={{ color: C.text }}>{displayName}</b>
+          <span style={{ display: "block", marginTop: 1 }}>{session.user.email}</span>
           {syncState && <span style={{ color: C.doom }}> · {syncState}</span>}
         </span>
+        <button type="button" onClick={onEditProfile}
+          style={{ border: `1px solid ${C.doom}77`, background: `${C.doom}18`, color: C.text,
+            borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 12 }}>
+          Perfil
+        </button>
         <button type="button" onClick={onSignOut}
           style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.muted,
             borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 12 }}>
@@ -692,6 +733,89 @@ function LoginScreen({
   );
 }
 
+function ProfileModal({ form, message, saving, onChange, onSave, onClose }) {
+  const inputStyle = {
+    width: "100%", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 11px",
+    background: C.void, color: C.text, fontSize: 14, outline: "none",
+  };
+  const labelStyle = { display: "block", color: C.muted, fontSize: 12, margin: "11px 0 6px" };
+  const initial = (form.display_name || "Perfil").trim().slice(0, 1).toUpperCase();
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Editar perfil"
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 25, display: "flex", alignItems: "center",
+        justifyContent: "center", padding: 18, background: "#05030CCC", backdropFilter: "blur(10px)" }}>
+      <form onSubmit={onSave} onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(92vw, 430px)", border: `1px solid ${C.line}`, borderRadius: 16,
+          background: `linear-gradient(160deg, ${C.panel2}, ${C.panel})`, boxShadow: "0 18px 70px #000000AA",
+          padding: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span aria-hidden style={{ width: 58, height: 58, borderRadius: 999, overflow: "hidden",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            background: `linear-gradient(135deg, ${C.doom}, ${C.spider})`, color: C.void,
+            fontWeight: 800, fontSize: 23, flexShrink: 0, boxShadow: `0 0 18px ${C.doom}33` }}>
+            {form.avatar_url ? (
+              <img src={form.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : initial}
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="osw" style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>Editar perfil</div>
+            <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+              Esse perfil prepara compartilhamento, fórum e assistir junto.
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar perfil"
+            style={{ width: 34, height: 34, borderRadius: 999, border: `1px solid ${C.line}`,
+              background: "transparent", color: C.muted, cursor: "pointer" }}>
+            ×
+          </button>
+        </div>
+
+        <label style={labelStyle}>Nome</label>
+        <input value={form.display_name} onChange={(e) => onChange("display_name", e.target.value)}
+          maxLength={80} placeholder="Como seus amigos vao te ver" style={inputStyle} />
+
+        <label style={labelStyle}>Foto / avatar URL</label>
+        <input value={form.avatar_url} onChange={(e) => onChange("avatar_url", e.target.value)}
+          maxLength={500} placeholder="https://..." style={inputStyle} />
+
+        <label style={labelStyle}>Bio curta</label>
+        <textarea value={form.bio} onChange={(e) => onChange("bio", e.target.value)}
+          maxLength={220} placeholder="Ex.: assistindo tudo antes de Doomsday"
+          style={{ ...inputStyle, minHeight: 76, resize: "vertical", lineHeight: 1.45 }} />
+
+        <label style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 12,
+          color: C.text, fontSize: 13, cursor: "pointer" }}>
+          <input type="checkbox" checked={form.share_public}
+            onChange={(e) => onChange("share_public", e.target.checked)} />
+          Perfil público para recursos sociais futuros
+        </label>
+
+        {message && (
+          <div style={{ marginTop: 10, color: message.includes("salvo") ? C.doom : C.gold, fontSize: 12.5 }}>
+            {message}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 15 }}>
+          <button type="button" onClick={onClose}
+            style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.muted,
+              borderRadius: 9, padding: "9px 12px", cursor: "pointer" }}>
+            Cancelar
+          </button>
+          <button type="submit" disabled={saving}
+            style={{ border: "none", background: C.doom, color: C.void, borderRadius: 9,
+              padding: "9px 13px", cursor: saving ? "default" : "pointer", fontWeight: 800,
+              opacity: saving ? .7 : 1 }}>
+            {saving ? "Salvando..." : "Salvar perfil"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function Cover({ branch, it, posters, onPreview }) {
   const p = posters[it.id];
   if (p) {
@@ -733,6 +857,11 @@ function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
+  const [profile, setProfile] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState(() => profileToForm(null, null));
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
   const [watched, setWatched] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem("rd_watched") || "[]")); } catch { return new Set(); }
   });
@@ -765,6 +894,33 @@ function App() {
       document.removeEventListener("keydown", onKey);
     };
   }, [posterPreview]);
+
+  useEffect(() => {
+    if (!routeClient || !session) {
+      setProfile(null);
+      setProfileOpen(false);
+      setProfileMessage("");
+      setProfileForm(profileToForm(null, session));
+      return;
+    }
+
+    let alive = true;
+    (async () => {
+      const fallback = profileFromSession(session);
+      const { data, error } = await routeClient
+        .from("profiles")
+        .select("id,email,display_name,avatar_url,bio,share_public,role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (!alive) return;
+      const next = error ? fallback : { ...fallback, ...(data || {}) };
+      setProfile(next);
+      setProfileForm(profileToForm(next, session));
+    })();
+
+    return () => { alive = false; };
+  }, [routeClient, session && session.user.id]);
 
   useEffect(() => {
     if (!routeClient) {
@@ -976,12 +1132,51 @@ function App() {
     }
   };
 
+  const changeProfileField = (field, value) => {
+    setProfileForm((current) => ({ ...current, [field]: value }));
+    setProfileMessage("");
+  };
+
+  const openProfile = () => {
+    setProfileForm(profileToForm(profile, session));
+    setProfileMessage("");
+    setProfileOpen(true);
+  };
+
+  const saveProfile = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!routeClient || !session) return;
+
+    setProfileSaving(true);
+    setProfileMessage("");
+    const { data, error } = await routeClient.rpc("update_own_profile", {
+      p_display_name: profileForm.display_name,
+      p_avatar_url: profileForm.avatar_url,
+      p_bio: profileForm.bio,
+      p_share_public: profileForm.share_public,
+    });
+
+    setProfileSaving(false);
+    if (error) {
+      setProfileMessage("Rode o schema atualizado no Supabase antes de salvar o perfil.");
+      return;
+    }
+
+    const saved = Array.isArray(data) ? data[0] : data;
+    const next = { ...profileFromSession(session), ...(saved || profileForm) };
+    setProfile(next);
+    setProfileForm(profileToForm(next, session));
+    setProfileMessage("Perfil salvo.");
+  };
+
   const signOut = async () => {
     if (!routeClient) return;
     await routeClient.auth.signOut();
     setSession(null);
     setGuestMode(false);
     setAuthPassword("");
+    setProfile(null);
+    setProfileOpen(false);
     setSyncState("modo local");
   };
 
@@ -1118,9 +1313,11 @@ function App() {
           <AuthBox
             enabled={!!routeClient}
             session={session}
+            profile={profile}
             syncState={syncState}
             onSignOut={signOut}
             onOpenLogin={() => { setGuestMode(false); setAuthMessage(""); }}
+            onEditProfile={openProfile}
           />
         </div>
 
@@ -1379,6 +1576,17 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {profileOpen && session && (
+        <ProfileModal
+          form={profileForm}
+          message={profileMessage}
+          saving={profileSaving}
+          onChange={changeProfileField}
+          onSave={saveProfile}
+          onClose={() => setProfileOpen(false)}
+        />
       )}
     </div>
   );
