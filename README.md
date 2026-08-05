@@ -67,6 +67,13 @@ Tambem aceito estes nomes, caso voce prefira copiar do ambiente Next:
 
 O `anon key` fica publico no navegador; isso e esperado no Supabase. Nao use `service_role` no frontend.
 
+Fluxo no app:
+
+- A primeira tela pede login por email/senha.
+- Ao entrar, o progresso local e enviado para `watch_progress`.
+- Depois disso, cada item marcado/desmarcado e salvo no Supabase.
+- O botao **Entrar sem conta** abre a rota em modo visitante e salva progresso só no navegador.
+
 ### Variaveis no EasyPanel
 
 Para o TMDB, variaveis do EasyPanel ficam no container/nginx, nao no navegador. Para usar o token sem expor, use uma destas rotas:
