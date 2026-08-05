@@ -1,0 +1,43 @@
+name: Update TMDB posters
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  update-posters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Refresh poster manifest
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
+            node generate-posters.mjs --from-supabase --refresh
+          else
+            node generate-posters.mjs --refresh
+          fi
+        env:
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Commit poster changes
+        run: |
+          if git diff --quiet posters.json; then
+            echo "No poster changes"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add posters.json
+            git commit -m "Update TMDB posters"
+            git push
+          fi

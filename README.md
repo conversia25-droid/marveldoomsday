@@ -27,9 +27,49 @@ Use o **Token de Leitura da API** do TMDB como variavel de ambiente. Nao coloque
 
 O script atualiza `posters.json`, e o site carrega esse arquivo automaticamente.
 
+Tambem da para atualizar tudo de novo quando o TMDB trocar uma capa:
+
+    node generate-posters.mjs --refresh
+
+Quando a lista oficial estiver no Supabase:
+
+    $env:SUPABASE_URL="https://keqvvdbaninwqwktwuyi.supabase.co"
+    $env:SUPABASE_ANON_KEY="sua_anon_key"
+    node generate-posters.mjs --from-supabase --refresh
+
+### Atualizacao automatica no GitHub
+
+Crie os secrets `TMDB_TOKEN`, `SUPABASE_URL` e `SUPABASE_ANON_KEY`. O workflow `.github/workflows/update-posters.yml` roda toda segunda-feira e tambem pode ser acionado manualmente em **Actions -> Update TMDB posters -> Run workflow**.
+
+## Supabase
+
+O app pode usar Supabase para carregar a rota, manter a ordem dos filmes e salvar progresso por login.
+
+1. No Supabase, abra **SQL Editor** e rode `supabase/schema.sql`
+2. Depois rode `supabase/seed.sql`
+3. Em **Authentication**, habilite login por email/senha
+4. Crie uma conta pelo app
+5. No SQL Editor, transforme seu usuario em admin:
+
+       update public.profiles
+       set role = 'admin'
+       where email = 'seu-email@dominio.com';
+
+No EasyPanel, configure estas variaveis:
+
+    SUPABASE_URL=https://keqvvdbaninwqwktwuyi.supabase.co
+    SUPABASE_ANON_KEY=sua_anon_key
+
+Tambem aceito estes nomes, caso voce prefira copiar do ambiente Next:
+
+    NEXT_PUBLIC_SUPABASE_URL=...
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+
+O `anon key` fica publico no navegador; isso e esperado no Supabase. Nao use `service_role` no frontend.
+
 ### Variaveis no EasyPanel
 
-Em site estatico, variaveis do EasyPanel ficam no container/nginx, nao no navegador. Para usar o token sem expor, use uma destas rotas:
+Para o TMDB, variaveis do EasyPanel ficam no container/nginx, nao no navegador. Para usar o token sem expor, use uma destas rotas:
 
 1. Gere `posters.json` antes do deploy e publique só o JSON pronto.
 2. Crie um endpoint/proxy no servidor que leia `TMDB_TOKEN` e consulte o TMDB por tras.

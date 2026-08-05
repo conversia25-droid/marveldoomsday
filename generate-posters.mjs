@@ -7,6 +7,8 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const indexPath = path.join(root, "index.html");
 const outputPath = path.join(root, "posters.json");
 const token = process.env.TMDB_TOKEN || process.env.TMDB_READ_TOKEN || process.env.TMDB_BEARER_TOKEN;
+const refreshAll = process.argv.includes("--refresh");
+const fromSupabase = process.argv.includes("--from-supabase");
 
 if (!token) {
   console.error("Defina TMDB_TOKEN com o Token de Leitura da API do TMDB.");
@@ -79,9 +81,40 @@ async function fetchPoster(item) {
   return data.results?.[0]?.poster_path || "";
 }
 
-const html = fs.readFileSync(indexPath, "utf8");
-const branches = extractBranches(html);
-const items = branches.flatMap((branch) => branch.items);
+async function loadItemsFromSupabase() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Defina SUPABASE_URL e SUPABASE_ANON_KEY para usar --from-supabase.");
+  }
+
+  const url = new URL("/rest/v1/movies", supabaseUrl);
+  url.searchParams.set("select", "id,title,search_query,release_year,media_type");
+  url.searchParams.set("active", "eq.true");
+  url.searchParams.set("order", "branch_id.asc,display_order.asc");
+
+  const response = await fetch(url, {
+    headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+  });
+  if (!response.ok) throw new Error(`Supabase retornou ${response.status} ao listar filmes.`);
+
+  const rows = await response.json();
+  return rows.map((row) => ({
+    id: row.id,
+    t: row.title,
+    q: row.search_query || row.title,
+    y: row.release_year,
+    tv: row.media_type === "tv" ? 1 : 0,
+  }));
+}
+
+async function loadLocalItems() {
+  const html = fs.readFileSync(indexPath, "utf8");
+  const branches = extractBranches(html);
+  return branches.flatMap((branch) => branch.items);
+}
+
+const items = fromSupabase ? await loadItemsFromSupabase() : await loadLocalItems();
 const posters = fs.existsSync(outputPath)
   ? JSON.parse(fs.readFileSync(outputPath, "utf8") || "{}")
   : {};
@@ -90,7 +123,7 @@ let found = 0;
 let missing = 0;
 
 for (const item of items) {
-  if (posters[item.id]) {
+  if (posters[item.id] && !refreshAll) {
     found += 1;
     continue;
   }
