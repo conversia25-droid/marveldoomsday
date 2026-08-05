@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rota Doomsday</title>
+<meta name="theme-color" content="#070510">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23E5484D'/%3E%3Ctext x='16' y='21' text-anchor='middle' font-size='13' font-weight='bold' fill='%23070510' font-family='sans-serif'%3EDD%3C/text%3E%3C/svg%3E">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: #070510; }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef } = React;
+
+/* ================== CONFIGURAÇÃO ================== */
+const TMDB_TOKEN = ""; // ← cole aqui o API Read Access Token (v4) do TMDB pra ativar os pôsteres oficiais
+/* ================================================== */
+
+const C = {
+  void: "#070510", panel: "#151129", panel2: "#1C1735", line: "#2C2450",
+  text: "#F0EDFA", muted: "#9C94BC",
+  mcu: "#E5484D", series: "#2DD4BF", xmen: "#F5B841", spider: "#8B7BFF",
+  extra: "#8A94A6", doom: "#34D399", gold: "#E8B04B",
+};
+const M = { E: "essencial", R: "recomendado", C: "completista" };
+
+const BRANCHES = [
+  { id: "infinito", color: C.mcu, emblem: "a", title: "Saga do Infinito", sub: "MCU · Fases 1–3 · o alicerce",
+    items: [
+      { id: "i01", t: "Homem de Ferro", q: "Iron Man", y: 2008, cy: 2010.0, tv: 0, m: M.R , w: "Onde tudo começa. Apresenta Tony Stark e a ideia de herói público e falível — e traz a primeira cena pós-créditos que inventou o conceito de universo compartilhado no cinema." },
+      { id: "i02", t: "O Incrível Hulk", q: "The Incredible Hulk", y: 2008, cy: 2011.1, tv: 0, m: M.C , w: "Apresenta Bruce Banner e, mais importante, o General Ross — um personagem secundário aqui que se torna peça central décadas depois na linha do Capitão América." },
+      { id: "i03", t: "Homem de Ferro 2", q: "Iron Man 2", y: 2010, cy: 2011.0, tv: 0, m: M.C , w: "Expande a S.H.I.E.L.D. de organização misteriosa para peça central, e apresenta Natasha Romanoff e o Máquina de Combate." },
+      { id: "i04", t: "Thor", q: "Thor", y: 2011, cy: 2011.2, tv: 0, m: M.R , w: "Abre a porta do lado cósmico e mitológico do universo. Apresenta Asgard e, sobretudo, Loki — o personagem que mais tarde se torna a chave de todo o multiverso." },
+      { id: "i05", t: "Capitão América: O Primeiro Vingador", q: "Captain America: The First Avenger", y: 2011, cy: 1943, tv: 0, m: M.R , w: "O primeiro ponto da cronologia, lá nos anos 40. Estabelece o Capitão América, o Tesseract e a origem histórica que sustenta boa parte da saga." },
+      { id: "i06", t: "Os Vingadores", q: "The Avengers", y: 2012, cy: 2012.0, tv: 0, m: M.E , w: "O time se forma. É o filme que provou que crossover funciona e criou o modelo que o Doomsday leva ao extremo — só que com três universos em vez de um." },
+      { id: "i07", t: "Homem de Ferro 3", q: "Iron Man 3", y: 2013, cy: 2012.5, tv: 0, m: M.C , w: "Mostra Tony lidando com as consequências psicológicas de ser herói, e apresenta uma organização e um vilão cuja verdadeira história é retomada anos depois em Shang-Chi." },
+      { id: "i08", t: "Thor: O Mundo Sombrio", q: "Thor: The Dark World", y: 2013, cy: 2013.0, tv: 0, m: M.C , w: "Apresenta o Éter, uma das Joias do Infinito, e aprofunda a mitologia asgardiana que Ragnarok depois vira do avesso." },
+      { id: "i09", t: "Capitão América: O Soldado Invernal", q: "Captain America: The Winter Soldier", y: 2014, cy: 2014.0, tv: 0, m: M.R , w: "O filme que reorganiza o tabuleiro político do universo inteiro. Aprofunda Bucky e Sam Wilson, os dois personagens que herdam o legado do Capitão." },
+      { id: "i10", t: "Guardiões da Galáxia", q: "Guardians of the Galaxy", y: 2014, cy: 2014.3, tv: 0, m: M.R , w: "Abre o espaço sideral do universo. Apresenta as Joias do Infinito como conceito unificado e coloca Thanos em cena como ameaça de fundo." },
+      { id: "i11", t: "Vingadores: Era de Ultron", q: "Avengers: Age of Ultron", y: 2015, cy: 2015.0, tv: 0, m: M.E , w: "Nascem Wanda Maximoff e o Visão, e surge a fratura de confiança entre Stark e Rogers que estoura em Guerra Civil." },
+      { id: "i12", t: "Homem-Formiga", q: "Ant-Man", y: 2015, cy: 2015.5, tv: 0, m: M.R , w: "Apresenta o Reino Quântico — que parece um detalhe divertido aqui e vira o mecanismo central do multiverso e das viagens no tempo." },
+      { id: "i13", t: "Capitão América: Guerra Civil", q: "Captain America: Civil War", y: 2016, cy: 2016.0, tv: 0, m: M.E , w: "Racha os Vingadores em dois lados. Apresenta o Pantera Negra e a versão do Homem-Aranha que segue até hoje no MCU." },
+      { id: "i14", t: "Doutor Estranho", q: "Doctor Strange", y: 2016, cy: 2016.9, tv: 0, m: M.E , w: "Apresenta a magia, as dimensões paralelas e a Joia do Tempo. É a base conceitual direta de tudo que o multiverso faz depois." },
+      { id: "i15", t: "Guardiões da Galáxia Vol. 2", q: "Guardians of the Galaxy Vol. 2", y: 2017, cy: 2014.6, tv: 0, m: M.C , w: "Aprofunda os laços da família Guardiões e planta sementes cósmicas — inclusive Adam Warlock — colhidas nos filmes seguintes." },
+      { id: "i16", t: "Homem-Aranha: De Volta ao Lar", q: "Spider-Man: Homecoming", y: 2017, cy: 2016.7, tv: 0, m: M.R , w: "Define quem é o Peter Parker desse universo: um garoto sob a mentoria de Tony Stark, o que dá peso emocional a tudo que vem depois." },
+      { id: "i17", t: "Thor: Ragnarok", q: "Thor: Ragnarok", y: 2017, cy: 2017.5, tv: 0, m: M.E , w: "Transforma o tom e a trajetória de Thor por completo, e o estado em que ele termina o filme é literalmente o ponto de partida de Guerra Infinita." },
+      { id: "i18", t: "Pantera Negra", q: "Black Panther", y: 2018, cy: 2016.5, tv: 0, m: M.E , w: "Apresenta Wakanda e o vibranium. Essencial para o Doomsday: os wakandanos são uma das cinco frentes confirmadas no filme." },
+      { id: "i19", t: "Vingadores: Guerra Infinita", q: "Avengers: Infinity War", y: 2018, cy: 2018.2, tv: 0, m: M.E , w: "O ponto de virada da Saga do Infinito, com todos os fios se encontrando. Nada do que vem depois faz sentido sem ele." },
+      { id: "i20", t: "Homem-Formiga e a Vespa", q: "Ant-Man and the Wasp", y: 2018, cy: 2018.0, tv: 0, m: M.C , w: "Estabelece as regras do Reino Quântico com seriedade e apresenta personagens que voltam com papel muito maior em Quantumania." },
+      { id: "i21", t: "Capitã Marvel", q: "Captain Marvel", y: 2019, cy: 1995, tv: 0, m: M.R , w: "Origem nos anos 90 que explica a tecnologia por trás dos Vingadores, apresenta os Skrulls (retomados em Invasão Secreta) e a heroína mais poderosa do time." },
+      { id: "i22", t: "Vingadores: Ultimato", q: "Avengers: Endgame", y: 2019, cy: 2023.0, tv: 0, m: M.E , w: "Fecha a Saga do Infinito — e o método usado pelos heróis é exatamente o que bagunça as linhas temporais e abre caminho para o multiverso." },
+      { id: "i23", t: "Homem-Aranha: Longe de Casa", q: "Spider-Man: Far From Home", y: 2019, cy: 2024.0, tv: 0, m: M.R , w: "Mostra como o mundo ficou depois de Ultimato e traz a primeira menção explícita à ideia de realidades alternativas dentro do MCU." },
+    ] },
+  { id: "multiverso", color: C.mcu, emblem: "m", title: "Saga do Multiverso", sub: "MCU · Fases 4–6 · o caminho direto",
+    items: [
+      { id: "m01", t: "Viúva Negra", q: "Black Widow", y: 2021, cy: 2016.2, tv: 0, m: M.C , w: "Preenche uma lacuna na história da Natasha e apresenta Yelena Belova — que se torna peça central dos Thunderbolts, um dos times do Doomsday." },
+      { id: "m02", t: "Shang-Chi e a Lenda dos Dez Anéis", q: "Shang-Chi and the Legend of the Ten Rings", y: 2021, cy: 2023.5, tv: 0, m: M.E , w: "Revela a verdadeira organização dos Dez Anéis e apresenta uma tecnologia de origem desconhecida que sinaliza ameaças interdimensionais." },
+      { id: "m03", t: "Eternos", q: "Eternals", y: 2021, cy: 2023.6, tv: 0, m: M.R , w: "Adiciona uma camada mitológica milenar ao universo, apresentando os Celestiais — as entidades mais poderosas já mostradas — e um grupo ainda por se integrar." },
+      { id: "m04", t: "Homem-Aranha: Sem Volta pra Casa", q: "Spider-Man: No Way Home", y: 2021, cy: 2024.2, tv: 0, m: M.E, note: "Abre o multiverso — puxa os Aranhas antigos" , w: "O momento em que o multiverso deixa de ser teoria e vira realidade visível. É o filme que autoriza a existência de todas as versões alternativas." },
+      { id: "m05", t: "Doutor Estranho no Multiverso da Loucura", q: "Doctor Strange in the Multiverse of Madness", y: 2022, cy: 2024.3, tv: 0, m: M.E , w: "Estabelece as regras práticas do multiverso: como se viaja, o que são incursões e o preço de mexer nisso. Leitura obrigatória pro Doomsday." },
+      { id: "m06", t: "Thor: Amor e Trovão", q: "Thor: Love and Thunder", y: 2022, cy: 2025.3, tv: 0, m: M.R , w: "Atualiza onde Thor está emocionalmente e amplia o panteão de deuses do universo, apresentando quem manda entre eles." },
+      { id: "m07", t: "Pantera Negra: Wakanda Para Sempre", q: "Black Panther: Wakanda Forever", y: 2022, cy: 2025.6, tv: 0, m: M.E , w: "Define a nova geração de Wakanda que vai representar o país no Doomsday, e amplia o mapa político do mundo pós-Ultimato." },
+      { id: "m08", t: "Homem-Formiga e a Vespa: Quantumania", q: "Ant-Man and the Wasp: Quantumania", y: 2023, cy: 2026.0, tv: 0, m: M.R , w: "Apresenta formalmente o conceito de variantes conquistadoras e o vilão que deveria comandar a saga — contexto essencial pra entender a troca pelo Doutor Destino." },
+      { id: "m09", t: "Guardiões da Galáxia Vol. 3", q: "Guardians of the Galaxy Vol. 3", y: 2023, cy: 2026.1, tv: 0, m: M.C , w: "Encerra o arco dos Guardiões atuais e deixa claro quem continua ativo no universo daqui pra frente." },
+      { id: "m10", t: "As Marvels", q: "The Marvels", y: 2023, cy: 2026.2, tv: 0, m: M.R , w: "Junta três heroínas de gerações diferentes e termina com um evento de ruptura no espaço-tempo que aponta direto pro futuro da saga." },
+      { id: "m11", t: "Deadpool & Wolverine", q: "Deadpool & Wolverine", y: 2024, cy: 2026.4, tv: 0, m: M.E, note: "Amarra a Fox/X-Men ao MCU via TVA" , w: "O filme que oficialmente amarra o universo da Fox ao MCU através da TVA. Sem ele, a presença dos X-Men originais no Doomsday não se sustenta." },
+      { id: "m12", t: "Capitão América: Admirável Mundo Novo", q: "Captain America: Brave New World", y: 2025, cy: 2026.6, tv: 0, m: M.E , w: "Apresenta Sam Wilson consolidado como Capitão América e coloca o General Ross num novo lugar de poder — com implicações diretas na política do universo." },
+      { id: "m13", t: "Thunderbolts*", q: "Thunderbolts", y: 2025, cy: 2026.7, tv: 0, m: M.E, note: "Nascem os Novos Vingadores" , w: "O filme onde nasce o time dos Novos Vingadores, uma das frentes confirmadas do Doomsday. Praticamente um prólogo." },
+      { id: "m14", t: "Quarteto Fantástico: Primeiros Passos", q: "The Fantastic Four: First Steps", y: 2025, cy: 2026.8, tv: 0, m: M.E , w: "Apresenta o Quarteto Fantástico e o Doutor Destino, o vilão do Doomsday. Talvez o filme mais indispensável de todos os recentes." },
+      { id: "m15", t: "Homem-Aranha: Um Novo Dia", q: "Spider-Man: Brand New Day", y: 2026, cy: 2026.9, tv: 0, m: M.E, note: "Último filme antes do Doomsday" , w: "O último filme antes do Doomsday. Fecha os fios pendentes do Homem-Aranha e serve de ponte imediata para o crossover." },
+    ] },
+  { id: "series", color: C.series, emblem: "s", title: "Séries Disney+", sub: "MCU · assista intercalado à Saga do Multiverso",
+    merge: "Costuram o multiverso do tronco principal",
+    items: [
+      { id: "s01", t: "WandaVision", q: "WandaVision", y: 2021, cy: 2023.2, tv: 1, m: M.E, note: "Prepara o Multiverso da Loucura" , w: "Aprofunda Wanda depois das perdas que sofreu e apresenta a Feitiçaria do Caos, o poder que motiva o Multiverso da Loucura." },
+      { id: "s02", t: "Falcão e o Soldado Invernal", q: "The Falcon and the Winter Soldier", y: 2021, cy: 2023.3, tv: 1, m: M.R , w: "A transição do escudo. Explica por que Sam aceita o manto e o custo político dessa escolha — base do novo Capitão América." },
+      { id: "s03", t: "Loki — 1ª temporada", q: "Loki", y: 2021, cy: 2023.1, tv: 1, m: M.E, note: "TVA + multiverso: espinha dorsal" , w: "A espinha dorsal do multiverso. Apresenta a TVA, a Linha do Tempo Sagrada e quem realmente estava no controle dela. Indispensável." },
+      { id: "s04", t: "What If…? — 1ª temporada", q: "What If", y: 2021, cy: 2023.12, tv: 1, m: M.R , w: "Mostra na prática como pequenas mudanças criam realidades inteiramente diferentes, e apresenta o Vigia, observador de todo o multiverso." },
+      { id: "s05", t: "Gavião Arqueiro", q: "Hawkeye", y: 2021, cy: 2024.9, tv: 1, m: M.C , w: "Apresenta Kate Bishop e devolve ao universo um vilão do submundo de Nova York que reaparece com muito mais peso depois." },
+      { id: "s06", t: "Cavaleiro da Lua", q: "Moon Knight", y: 2022, cy: 2025.0, tv: 1, m: M.C , w: "Expande o universo pro terreno sobrenatural e o panteão egípcio, mostrando que existem forças fora do alcance dos Vingadores." },
+      { id: "s07", t: "Ms. Marvel", q: "Ms. Marvel", y: 2022, cy: 2025.2, tv: 1, m: M.R, note: "Liga direto a As Marvels" , w: "Apresenta Kamala Khan e a natureza dos poderes dela — uma revelação que abre a porta para os mutantes dentro do MCU." },
+      { id: "s08", t: "Mulher-Hulk: Defensora de Heróis", q: "She-Hulk: Attorney at Law", y: 2022, cy: 2025.4, tv: 1, m: M.C , w: "Brinca com as próprias regras do universo e traz de volta o Demolidor num tom novo, preparando terreno pra fase seguinte dele." },
+      { id: "s09", t: "Lobisomem na Noite", q: "Werewolf by Night", y: 2022, cy: 2025.5, tv: 0, m: M.C , w: "Curto e fácil de encaixar. Apresenta o canto sobrenatural do universo e monstros que ampliam o tipo de ameaça possível." },
+      { id: "s10", t: "Invasão Secreta", q: "Secret Invasion", y: 2023, cy: 2025.8, tv: 1, m: M.C , w: "Retoma os Skrulls apresentados em Capitã Marvel e muda de forma permanente a posição de Nick Fury no tabuleiro." },
+      { id: "s11", t: "Loki — 2ª temporada", q: "Loki", y: 2023, cy: 2023.15, tv: 1, m: M.E, note: "Fecha o arco da TVA" , w: "Onde o multiverso é definitivamente liberado. A situação em que essa temporada termina é literalmente a premissa do Doomsday." },
+      { id: "s12", t: "What If…? — 2ª temporada", q: "What If", y: 2023, cy: 2023.17, tv: 1, m: M.C , w: "Mais variações do multiverso, agora cruzando personagens de épocas diferentes — reforça o quanto as realidades já estão embaralhadas." },
+      { id: "s13", t: "Echo", q: "Echo", y: 2024, cy: 2025.7, tv: 1, m: M.C , w: "Aprofunda uma personagem do submundo e conecta diretamente com o retorno do Demolidor." },
+      { id: "s14", t: "Agatha Desde Sempre", q: "Agatha All Along", y: 2024, cy: 2026.3, tv: 1, m: M.C , w: "Continua o fio da bruxaria deixado por WandaVision e amplia as regras da magia no universo." },
+      { id: "s15", t: "What If…? — 3ª temporada", q: "What If", y: 2024, cy: 2023.18, tv: 1, m: M.C , w: "Fecha a antologia de realidades alternativas, com o multiverso já plenamente estabelecido no resto da saga." },
+      { id: "s16", t: "Demolidor: Renascido", q: "Daredevil: Born Again", y: 2025, cy: 2026.5, tv: 1, m: M.R , w: "Mostra o nível de rua de Nova York sob um novo equilíbrio de poder — importante pro pano de fundo em que o Homem-Aranha atual opera." },
+      { id: "s17", t: "Coração de Ferro (Ironheart)", q: "Ironheart", y: 2025, cy: 2026.65, tv: 1, m: M.C , w: "Apresenta a herdeira da tecnologia Stark e cruza tecnologia com magia, um choque que o universo ainda vai explorar." },
+    ] },
+  { id: "xmen", color: C.xmen, emblem: "x", title: "X-Men (Fox) + Deadpool", sub: "Os X-Men originais voltam no Doomsday",
+    merge: "Confluem em Deadpool & Wolverine → Doomsday",
+    items: [
+      { id: "x01", t: "X-Men", q: "X-Men", y: 2000, cy: 2000, tv: 0, m: M.R , w: "O filme que iniciou a era moderna dos super-heróis no cinema. Apresenta Xavier, Magneto, Wolverine e a tensão mutante que o Doomsday resgata." },
+      { id: "x02", t: "X-Men 2", q: "X2", y: 2003, cy: 2003, tv: 0, m: M.R , w: "Aprofunda o conflito entre convivência e separatismo, e é considerado o ápice da primeira trilogia dos X-Men." },
+      { id: "x03", t: "X-Men: O Confronto Final", q: "X-Men: The Last Stand", y: 2006, cy: 2006, tv: 0, m: M.R , w: "Fecha a trilogia original e apresenta a Fênix — arco que o próprio estúdio revisita anos depois." },
+      { id: "x04", t: "X-Men Origens: Wolverine", q: "X-Men Origins: Wolverine", y: 2009, cy: 1979, tv: 0, m: M.C , w: "Preenche o passado do Wolverine. Opcional, mas explica de onde vem a versão do personagem que aparece em Deadpool & Wolverine." },
+      { id: "x05", t: "X-Men: Primeira Classe", q: "X-Men: First Class", y: 2011, cy: 1962, tv: 0, m: M.R , w: "Reinicia a franquia nos anos 60 mostrando a amizade e a ruptura entre Xavier e Magneto — a raiz de todo o conflito mutante." },
+      { id: "x06", t: "Wolverine: Imortal", q: "The Wolverine", y: 2013, cy: 2013.5, tv: 0, m: M.C , w: "Foco no Wolverine solo, no Japão. Estabelece o estado emocional dele que Logan depois leva às últimas consequências." },
+      { id: "x07", t: "X-Men: Dias de um Futuro Esquecido", q: "X-Men: Days of Future Past", y: 2014, cy: 1973, tv: 0, m: M.E, note: "Multiverso mutante: une as duas linhas do tempo" , w: "Une os dois elencos dos X-Men através de viagem no tempo — a primeira vez que essa franquia mexeu com realidades alternativas." },
+      { id: "x08", t: "Deadpool", q: "Deadpool", y: 2016, cy: 2016.4, tv: 0, m: M.R , w: "Apresenta o Deadpool e a consciência dele de estar num filme, tom que o crossover com o MCU depois aproveita inteiro." },
+      { id: "x09", t: "X-Men: Apocalipse", q: "X-Men: Apocalypse", y: 2016, cy: 1983, tv: 0, m: M.C , w: "Amplia a escala das ameaças mutantes e mostra a formação da geração mais jovem dos X-Men." },
+      { id: "x10", t: "Logan", q: "Logan", y: 2017, cy: 2029, tv: 0, m: M.R , w: "O ponto final emocional do Wolverine da Fox, num futuro sombrio. Dá o peso dramático que torna significativo o reencontro com o personagem depois." },
+      { id: "x11", t: "Deadpool 2", q: "Deadpool 2", y: 2018, cy: 2018.1, tv: 0, m: M.R , w: "Apresenta a Força X e um dispositivo de manipulação temporal que, mais tarde, se revela peça importante na conexão com a TVA." },
+      { id: "x12", t: "X-Men: Fênix Negra", q: "Dark Phoenix", y: 2019, cy: 1992, tv: 0, m: M.C , w: "Nova tentativa de adaptar a saga da Fênix; encerra o arco dos X-Men modernos da Fox." },
+      { id: "x13", t: "Os Novos Mutantes", q: "The New Mutants", y: 2020, cy: 2020, tv: 0, m: M.C , w: "O último filme da era Fox, em tom de terror. Fecha o ciclo antes da franquia migrar para a Marvel." },
+    ] },
+  { id: "spider", color: C.spider, emblem: "w", title: "Homem-Aranha (versões alternativas)", sub: "Os Aranhas que aparecem em Sem Volta pra Casa",
+    merge: "Confluem em Sem Volta pra Casa",
+    items: [
+      { id: "p01", t: "Homem-Aranha (Raimi)", q: "Spider-Man", y: 2002, cy: 2002.1, tv: 0, m: M.R , w: "O Homem-Aranha do Tobey Maguire — a versão que definiu o personagem no cinema e que reaparece no multiverso do MCU." },
+      { id: "p02", t: "Homem-Aranha 2", q: "Spider-Man 2", y: 2004, cy: 2004.1, tv: 0, m: M.R , w: "Considerado um dos melhores filmes de super-herói já feitos, e apresenta o vilão que retorna com papel central em Sem Volta pra Casa." },
+      { id: "p03", t: "Homem-Aranha 3", q: "Spider-Man 3", y: 2007, cy: 2007.1, tv: 0, m: M.C , w: "Fecha a trilogia do Raimi e apresenta o simbionte, ponto de partida de todo o universo derivado da Sony." },
+      { id: "p04", t: "O Espetacular Homem-Aranha", q: "The Amazing Spider-Man", y: 2012, cy: 2012.1, tv: 0, m: M.R , w: "A versão do Andrew Garfield, com uma origem diferente e um arco emocional que Sem Volta pra Casa depois retoma diretamente." },
+      { id: "p05", t: "O Espetacular Homem-Aranha 2", q: "The Amazing Spider-Man 2", y: 2014, cy: 2014.1, tv: 0, m: M.R , w: "O filme que dá o peso dramático ao reencontro desse Peter Parker no multiverso. Ver antes muda completamente a experiência." },
+    ] },
+  { id: "sony", color: C.extra, emblem: "v", dashed: true, title: "Universo Sony (SSU)", sub: "Ligação frouxa ao multiverso · opcional",
+    merge: "Canon frouxo — tangencia o multiverso",
+    items: [
+      { id: "y01", t: "Venom", q: "Venom", y: 2018, cy: 2018.4, tv: 0, m: M.C , w: "Apresenta o simbionte e o tom próprio do universo Sony. A cena pós-créditos é o que liga esse universo ao multiverso maior." },
+      { id: "y02", t: "Venom: Tempo de Carnificina", q: "Venom: Let There Be Carnage", y: 2021, cy: 2021.0, tv: 0, m: M.C , w: "Continua a relação entre Eddie e o simbionte, e termina com um evento multiversal que conecta diretamente ao filme do Homem-Aranha." },
+      { id: "y03", t: "Morbius", q: "Morbius", y: 2022, cy: 2023.9, tv: 0, m: M.C , w: "Vampirismo científico no universo Sony. A conexão com o multiverso é feita nas cenas pós-créditos." },
+      { id: "y04", t: "Madame Teia", q: "Madame Web", y: 2024, cy: 2003.5, tv: 0, m: M.C , w: "Ambientado nos anos 2000, explora precognição e realidades possíveis. Ligação frouxa, mas dentro do mesmo tema." },
+      { id: "y05", t: "Kraven, o Caçador", q: "Kraven the Hunter", y: 2024, cy: 2024.5, tv: 0, m: M.C , w: "Origem de um caçador clássico dos quadrinhos do Homem-Aranha, no tom mais adulto do universo Sony." },
+      { id: "y06", t: "Venom: A Última Rodada", q: "Venom: The Last Dance", y: 2024, cy: 2024.6, tv: 0, m: M.C , w: "Encerra a trilogia do Venom e resolve as pontas multiversais deixadas pelos filmes anteriores." },
+    ] },
+  { id: "qf", color: C.extra, emblem: "q", dashed: true, title: "Quarteto Fantástico (antigos)", sub: "Predecessores de Primeiros Passos · curiosidade",
+    merge: "Predecessores de Primeiros Passos",
+    items: [
+      { id: "q01", t: "Quarteto Fantástico", q: "Fantastic Four", y: 2005, cy: 2005.5, tv: 0, m: M.C , w: "A primeira adaptação do Quarteto no cinema moderno. Serve de contraste pra entender o que Primeiros Passos faz de diferente." },
+      { id: "q02", t: "Quarteto Fantástico e o Surfista Prateado", q: "Fantastic Four: Rise of the Silver Surfer", y: 2007, cy: 2007.5, tv: 0, m: M.C , w: "Apresenta o Surfista Prateado e Galactus na versão antiga — vale como curiosidade comparativa com a nova encarnação." },
+      { id: "q03", t: "Quarteto Fantástico", q: "Fantastic Four", y: 2015, cy: 2015.9, tv: 0, m: M.C , w: "Tentativa de reinício em tom sombrio. Interessante como referência do que a Marvel escolheu não repetir." },
+    ] },
+];
+
+const FILTER_LEVEL = { essencial: 1, recomendado: 2, completista: 3 };
+const FILTERS = [
+  { key: "essencial", label: "Essencial", desc: "Só o mínimo pra não se perder" },
+  { key: "recomendado", label: "Recomendado", desc: "Essencial + contexto forte" },
+  { key: "completista", label: "Tudo", desc: "Acervo completo" },
+];
+const TARGET = new Date("2026-12-18T00:00:00-03:00");
+
+const STARS = Array.from({ length: 130 }, (_, i) => ({
+  x: (i * 137.508) % 100, y: (i * 61.803) % 100,
+  s: 0.8 + ((i * 7) % 4) * 0.6, d: 2 + ((i * 13) % 6), o: 0.2 + ((i * 11) % 7) / 10,
+  c: i % 11 === 0 ? "#8B7BFF" : i % 17 === 0 ? "#F5B841" : i % 23 === 0 ? "#2DD4BF" : "#fff",
+}));
+
+/* ---------- ícones inline ---------- */
+const I = {
+  check: (p) => (<svg width={p.size||12} height={p.size||12} viewBox="0 0 24 24" fill="none" stroke={p.color||"#070510"} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>),
+  star: (p) => (<svg width={p.size||12} height={p.size||12} viewBox="0 0 24 24" fill={C.gold} stroke={C.gold} strokeWidth="1"><path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/></svg>),
+  film: (p) => (<svg width={p.size||13} height={p.size||13} viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M2 15h5M17 9h5M17 15h5"/></svg>),
+  tv: (p) => (<svg width={p.size||13} height={p.size||13} viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 2l4 5 4-5"/></svg>),
+  chev: (p) => (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={p.style}><path d="M6 9l6 6 6-6"/></svg>),
+  reset: () => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></svg>),
+  zap: (p) => (<svg width={p.size||24} height={p.size||24} viewBox="0 0 24 24" fill={p.color} stroke={p.color} strokeWidth="1.5" strokeLinejoin="round" style={p.style}><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>),
+  clock: () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>),
+  branch: () => (<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="6" cy="5" r="2.5"/><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 7.5v9M8 6.2c5 1 7.5 2.8 7.6 5.8"/></svg>),
+  cloud: (p) => (<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={p.color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A7 7 0 0 0 4.3 12.5 4 4 0 0 0 6 19z"/>{p.ok && <path d="M9 13.5l2 2 4-4"/>}</svg>),
+};
+
+function Emblem({ kind, color, size = 26 }) {
+  const common = { width: size, height: size, viewBox: "0 0 32 32", style: { flexShrink: 0, filter: `drop-shadow(0 0 5px ${color}88)` } };
+  switch (kind) {
+    case "a": return (<svg {...common}><circle cx="16" cy="16" r="13" fill="none" stroke={color} strokeWidth="2.4"/><path d="M16 7l2.4 6.4 6.8.3-5.3 4.3 1.8 6.6L16 20.8l-5.7 3.8 1.8-6.6-5.3-4.3 6.8-.3z" fill={color}/></svg>);
+    case "m": return (<svg {...common}><ellipse cx="16" cy="16" rx="13" ry="6" fill="none" stroke={color} strokeWidth="2"/><ellipse cx="16" cy="16" rx="13" ry="6" transform="rotate(60 16 16)" fill="none" stroke={color} strokeWidth="2" opacity=".7"/><ellipse cx="16" cy="16" rx="13" ry="6" transform="rotate(120 16 16)" fill="none" stroke={color} strokeWidth="2" opacity=".45"/><circle cx="16" cy="16" r="3.4" fill={color}/></svg>);
+    case "s": return (<svg {...common}><rect x="6" y="10" width="20" height="14" rx="3" fill="none" stroke={color} strokeWidth="2.4"/><path d="M11 5l5 5 5-5" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round"/><circle cx="16" cy="17" r="3" fill={color}/></svg>);
+    case "x": return (<svg {...common}><circle cx="16" cy="16" r="13" fill="none" stroke={color} strokeWidth="2.4"/><path d="M9 9l14 14M23 9L9 23" stroke={color} strokeWidth="3.4" strokeLinecap="round"/></svg>);
+    case "w": return (<svg {...common}><circle cx="16" cy="16" r="13" fill="none" stroke={color} strokeWidth="2"/><path d="M16 3v26M3 16h26M6.8 6.8l18.4 18.4M25.2 6.8L6.8 25.2" stroke={color} strokeWidth="1.4" opacity=".8"/><circle cx="16" cy="16" r="5.5" fill="none" stroke={color} strokeWidth="1.6"/></svg>);
+    case "v": return (<svg {...common}><path d="M16 4c7 0 12 5 12 11 0 8-6 13-12 13S4 23 4 15C4 9 9 4 16 4z" fill="none" stroke={color} strokeWidth="2.2"/><path d="M11 13c1.5 2 2 5 1 8M21 13c-1.5 2-2 5-1 8" stroke={color} strokeWidth="2.4" strokeLinecap="round"/></svg>);
+    case "q": return (<svg {...common}><circle cx="16" cy="16" r="13" fill="none" stroke={color} strokeWidth="2.4"/><path d="M16 3v26M3 16h26" stroke={color} strokeWidth="2" opacity=".8"/><circle cx="16" cy="16" r="4" fill={color}/></svg>);
+    default: return null;
+  }
+}
+
+function Ring({ cx, cy, r, frac, color, bg = "#3A3060", w = 3 }) {
+  const circ = 2 * Math.PI * r;
+  return (<g>
+    <circle cx={cx} cy={cy} r={r} fill="none" stroke={bg} strokeWidth={w} />
+    <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={w}
+      strokeDasharray={`${circ * frac} ${circ}`} strokeLinecap="round" transform={`rotate(-90 ${cx} ${cy})`} />
+  </g>);
+}
+
+/* ============ CAMPO CÓSMICO — planetas, sóis, galáxias ============ */
+const COSMOS = [
+  { k: "sun",     top: 340,  side: "r", off: -60, size: 190, hue: "#F5B841", par: 0.06 },
+  { k: "planet",  top: 760,  side: "l", off: -50, size: 150, hue: "#8B7BFF", par: 0.13, ring: true },
+  { k: "galaxy",  top: 1180, side: "r", off: -70, size: 230, hue: "#2DD4BF", par: 0.09 },
+  { k: "nebula",  top: 1560, side: "l", off: -90, size: 300, hue: "#E5484D", par: 0.05 },
+  { k: "planet",  top: 2000, side: "r", off: -40, size: 110, hue: "#34D399", par: 0.16 },
+  { k: "comet",   top: 2380, side: "l", off: 20,  size: 130, hue: "#F0EDFA", par: 0.2 },
+  { k: "galaxy",  top: 2760, side: "l", off: -80, size: 200, hue: "#8B7BFF", par: 0.1 },
+  { k: "planet",  top: 3160, side: "r", off: -55, size: 165, hue: "#F5B841", par: 0.12, ring: true },
+  { k: "nebula",  top: 3600, side: "r", off: -100, size: 320, hue: "#2DD4BF", par: 0.04 },
+  { k: "moon",    top: 4020, side: "l", off: -30, size: 90,  hue: "#C9C2E5", par: 0.18 },
+  { k: "galaxy",  top: 4420, side: "r", off: -60, size: 215, hue: "#E5484D", par: 0.08 },
+  { k: "planet",  top: 4840, side: "l", off: -45, size: 130, hue: "#2DD4BF", par: 0.14 },
+  { k: "comet",   top: 5240, side: "r", off: 10,  size: 120, hue: "#E8B04B", par: 0.21 },
+  { k: "nebula",  top: 5640, side: "l", off: -85, size: 290, hue: "#8B7BFF", par: 0.05 },
+  { k: "planet",  top: 6060, side: "r", off: -50, size: 145, hue: "#E5484D", par: 0.11, ring: true },
+  { k: "galaxy",  top: 6480, side: "l", off: -70, size: 190, hue: "#34D399", par: 0.09 },
+  { k: "sun",     top: 6900, side: "r", off: -70, size: 170, hue: "#F5B841", par: 0.07 },
+  { k: "planet",  top: 7320, side: "l", off: -40, size: 120, hue: "#8B7BFF", par: 0.15 },
+  { k: "nebula",  top: 7740, side: "r", off: -95, size: 300, hue: "#34D399", par: 0.04 },
+  { k: "galaxy",  top: 8160, side: "l", off: -65, size: 205, hue: "#F5B841", par: 0.1 },
+];
+
+function CosmicObject({ k, size, hue, ring }) {
+  const s = size;
+  if (k === "sun") {
+    return (
+      <svg width={s} height={s} viewBox="0 0 100 100">
+        <defs>
+          <radialGradient id={`sg${hue.slice(1)}`}>
+            <stop offset="0%" stopColor="#FFF8E1" stopOpacity=".95" />
+            <stop offset="35%" stopColor={hue} stopOpacity=".8" />
+            <stop offset="70%" stopColor={hue} stopOpacity=".18" />
+            <stop offset="100%" stopColor={hue} stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <circle cx="50" cy="50" r="48" fill={`url(#sg${hue.slice(1)})`} />
+        <circle cx="50" cy="50" r="19" fill="#FFF3D0" opacity=".9" />
+        <circle cx="50" cy="50" r="24" fill="none" stroke={hue} strokeWidth=".7" opacity=".5" />
+      </svg>
+    );
+  }
+  if (k === "planet" || k === "moon") {
+    const craters = k === "moon";
+    return (
+      <svg width={s} height={s} viewBox="0 0 100 100">
+        <defs>
+          <radialGradient id={`pg${hue.slice(1)}${s}`} cx="35%" cy="30%">
+            <stop offset="0%" stopColor={hue} stopOpacity=".85" />
+            <stop offset="60%" stopColor={hue} stopOpacity=".38" />
+            <stop offset="100%" stopColor="#05030C" stopOpacity=".85" />
+          </radialGradient>
+        </defs>
+        {ring && (
+          <ellipse cx="50" cy="52" rx="46" ry="13" fill="none" stroke={hue} strokeWidth="2.6"
+            opacity=".42" transform="rotate(-22 50 52)" />
+        )}
+        <circle cx="50" cy="50" r="30" fill={`url(#pg${hue.slice(1)}${s})`} />
+        <circle cx="50" cy="50" r="30" fill="none" stroke={hue} strokeWidth=".8" opacity=".55" />
+        {craters ? (
+          <g fill="#05030C" opacity=".28">
+            <circle cx="42" cy="42" r="5" /><circle cx="58" cy="55" r="3.4" /><circle cx="47" cy="60" r="2.4" />
+          </g>
+        ) : (
+          <g fill={hue} opacity=".22">
+            <ellipse cx="45" cy="40" rx="13" ry="4" /><ellipse cx="55" cy="56" rx="16" ry="3.4" />
+            <ellipse cx="48" cy="66" rx="9" ry="2.6" />
+          </g>
+        )}
+        {ring && (
+          <path d="M 6 46 A 46 13 0 0 0 94 58" fill="none" stroke={hue} strokeWidth="2.6"
+            opacity=".42" transform="rotate(-22 50 52)" />
+        )}
+      </svg>
+    );
+  }
+  if (k === "galaxy") {
+    return (
+      <svg width={s} height={s} viewBox="0 0 100 100">
+        <defs>
+          <radialGradient id={`gg${hue.slice(1)}${s}`}>
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity=".85" />
+            <stop offset="30%" stopColor={hue} stopOpacity=".5" />
+            <stop offset="100%" stopColor={hue} stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <g transform="rotate(-18 50 50)">
+          <ellipse cx="50" cy="50" rx="46" ry="17" fill={`url(#gg${hue.slice(1)}${s})`} />
+          <path d="M50 50 C 30 44, 16 50, 10 58" fill="none" stroke={hue} strokeWidth="2.2" opacity=".55" strokeLinecap="round" />
+          <path d="M50 50 C 70 56, 84 50, 90 42" fill="none" stroke={hue} strokeWidth="2.2" opacity=".55" strokeLinecap="round" />
+          <path d="M50 50 C 36 38, 22 40, 15 47" fill="none" stroke={hue} strokeWidth="1.4" opacity=".35" strokeLinecap="round" />
+          <path d="M50 50 C 64 62, 78 60, 85 53" fill="none" stroke={hue} strokeWidth="1.4" opacity=".35" strokeLinecap="round" />
+          <ellipse cx="50" cy="50" rx="9" ry="6" fill="#FFFFFF" opacity=".75" />
+        </g>
+      </svg>
+    );
+  }
+  if (k === "nebula") {
+    return (
+      <svg width={s} height={s} viewBox="0 0 100 100">
+        <defs>
+          <radialGradient id={`ng${hue.slice(1)}${s}`}>
+            <stop offset="0%" stopColor={hue} stopOpacity=".34" />
+            <stop offset="55%" stopColor={hue} stopOpacity=".12" />
+            <stop offset="100%" stopColor={hue} stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <ellipse cx="42" cy="45" rx="42" ry="34" fill={`url(#ng${hue.slice(1)}${s})`} />
+        <ellipse cx="62" cy="60" rx="34" ry="28" fill={`url(#ng${hue.slice(1)}${s})`} opacity=".8" />
+        <g fill="#FFFFFF">
+          <circle cx="38" cy="40" r="1.1" opacity=".8" /><circle cx="58" cy="52" r="1.4" opacity=".7" />
+          <circle cx="48" cy="66" r="1" opacity=".6" /><circle cx="70" cy="44" r="1.2" opacity=".65" />
+          <circle cx="30" cy="58" r=".9" opacity=".5" />
+        </g>
+      </svg>
+    );
+  }
+  if (k === "comet") {
+    return (
+      <svg width={s} height={s * 0.5} viewBox="0 0 100 50">
+        <defs>
+          <linearGradient id={`cg${hue.slice(1)}${s}`} x1="1" y1="0" x2="0" y2="0">
+            <stop offset="0%" stopColor={hue} stopOpacity=".8" />
+            <stop offset="100%" stopColor={hue} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d="M88 25 L 6 12 L 6 38 Z" fill={`url(#cg${hue.slice(1)}${s})`} opacity=".55" />
+        <circle cx="88" cy="25" r="6" fill={hue} opacity=".9" />
+        <circle cx="88" cy="25" r="11" fill={hue} opacity=".22" />
+      </svg>
+    );
+  }
+  return null;
+}
+
+function CosmicField() {
+  const [y, setY] = useState(0);
+  useEffect(() => {
+    let raf = null;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { setY(window.scrollY || 0); raf = null; });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, []);
+  return (
+    <div aria-hidden style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+      {COSMOS.map((o, i) => (
+        <div key={i} style={{
+          position: "absolute", top: o.top,
+          [o.side === "l" ? "left" : "right"]: o.off,
+          transform: `translateY(${-y * o.par}px)`,
+          willChange: "transform",
+          opacity: o.k === "nebula" ? 0.75 : 0.6,
+        }}>
+          <CosmicObject k={o.k} size={o.size} hue={o.hue} ring={o.ring} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Painel "por que assistir" */
+function Why({ it, color, open }) {
+  if (!open) return null;
+  return (
+    <div style={{ marginTop: 8, paddingTop: 9, borderTop: `1px solid ${color}33` }}>
+      <div className="osw" style={{ fontSize: 10.5, letterSpacing: 2, color: color, textTransform: "uppercase", marginBottom: 4 }}>
+        Por que assistir
+      </div>
+      <p style={{ fontSize: 12.5, lineHeight: 1.55, color: C.text, opacity: .88, margin: 0 }}>{it.w}</p>
+      <div style={{ fontSize: 10.5, color: C.muted, marginTop: 7, fontStyle: "italic" }}>
+        Sem spoilers · toque na bolinha à esquerda pra marcar como assistido
+      </div>
+    </div>
+  );
+}
+
+function Bar({ frac, color }) {
+  return (<div style={{ height: 8, borderRadius: 8, background: "#2C2450", overflow: "hidden" }}>
+    <div style={{ height: "100%", width: `${Math.round(frac * 100)}%`, background: `linear-gradient(90deg, ${color}, ${color}cc)`,
+      borderRadius: 8, boxShadow: `0 0 12px ${color}99`, transition: "width .4s" }} />
+  </div>);
+}
+
+function Countdown() {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const diff = Math.max(0, TARGET.getTime() - now);
+  if (diff === 0) return (<div className="osw" style={{ marginTop: 12, fontSize: 20, letterSpacing: 3, color: C.doom, fontWeight: 700 }}>⚡ JÁ ESTREOU ⚡</div>);
+  const d = Math.floor(diff / 86400000), h = Math.floor(diff / 3600000) % 24,
+        m = Math.floor(diff / 60000) % 60, s = Math.floor(diff / 1000) % 60;
+  const cell = (val, label, hot) => (
+    <div key={label} style={{ background: `linear-gradient(170deg, ${C.panel2}, ${C.panel})`,
+      border: `1px solid ${hot ? C.gold + "88" : C.line}`, borderRadius: 12, padding: "10px 0 7px",
+      minWidth: 64, flex: 1, maxWidth: 84, boxShadow: hot ? `0 0 16px ${C.gold}33` : "0 6px 16px #00000044" }}>
+      <div className="osw" style={{ fontSize: 26, fontWeight: 700, lineHeight: 1, color: hot ? C.gold : C.text, fontVariantNumeric: "tabular-nums" }}>
+        {String(val).padStart(2, "0")}</div>
+      <div style={{ fontSize: 9.5, letterSpacing: 2, color: C.muted, textTransform: "uppercase", marginTop: 3 }}>{label}</div>
+    </div>);
+  return (<div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 12 }}>
+    {cell(d, "dias", true)}{cell(h, "horas")}{cell(m, "min")}{cell(s, "seg")}</div>);
+}
+
+/* ---------- pôsteres TMDB (opcionais) ---------- */
+const posterCache = (() => { try { return JSON.parse(localStorage.getItem("rd_posters") || "{}"); } catch { return {}; } })();
+function savePosterCache() { try { localStorage.setItem("rd_posters", JSON.stringify(posterCache)); } catch {} }
+
+async function fetchPoster(it) {
+  if (!TMDB_TOKEN) return null;
+  if (posterCache[it.id] !== undefined) return posterCache[it.id];
+  try {
+    const kind = it.tv ? "tv" : "movie";
+    const yparam = it.tv ? `first_air_date_year=${it.y}` : `primary_release_year=${it.y}`;
+    const url = `https://api.themoviedb.org/3/search/${kind}?query=${encodeURIComponent(it.q || it.t)}&${yparam}&language=pt-BR&page=1`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${TMDB_TOKEN}` } });
+    const j = await r.json();
+    const p = j.results && j.results[0] && j.results[0].poster_path ? j.results[0].poster_path : null;
+    posterCache[it.id] = p; savePosterCache();
+    return p;
+  } catch { return null; }
+}
+
+function Cover({ branch, it, posters }) {
+  const p = posters[it.id];
+  if (p) {
+    return (<img src={`https://image.tmdb.org/t/p/w154${p}`} alt="" loading="lazy"
+      style={{ width: 42, height: 62, objectFit: "cover", borderRadius: 7, flexShrink: 0,
+        border: `1px solid ${branch.color}66`, boxShadow: "0 4px 10px #00000066" }} />);
+  }
+  return (<div aria-hidden style={{ width: 42, height: 58, borderRadius: 7, flexShrink: 0,
+    background: `linear-gradient(165deg, ${branch.color}44 0%, ${C.panel2} 55%, #0C0918 100%)`,
+    border: `1px solid ${branch.color}66`, display: "flex", flexDirection: "column",
+    alignItems: "center", justifyContent: "center", gap: 4,
+    boxShadow: `inset 0 0 14px ${branch.color}22, 0 4px 10px #00000055`, position: "relative", overflow: "hidden" }}>
+    <div style={{ position: "absolute", inset: 0, opacity: .16,
+      backgroundImage: "radial-gradient(#fff 0.8px, transparent 1.1px)", backgroundSize: "7px 7px" }} />
+    <Emblem kind={branch.emblem} color={branch.color} size={20} />
+    <span className="osw" style={{ fontSize: 8.5, color: C.muted, letterSpacing: 1, position: "relative" }}>{it.y}</span>
+  </div>);
+}
+
+function App() {
+  const [watched, setWatched] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("rd_watched") || "[]")); } catch { return new Set(); }
+  });
+  const [filter, setFilter] = useState(() => localStorage.getItem("rd_filter") || "recomendado");
+  const [view, setView] = useState(() => localStorage.getItem("rd_view") || "arvore");
+  const [posters, setPosters] = useState({ ...posterCache });
+  const [open, setOpen] = useState(() => { const o = {}; BRANCHES.forEach((b) => (o[b.id] = true)); return o; });
+  const [expanded, setExpanded] = useState(null);
+  const toggleExpand = (id) => setExpanded((e) => (e === id ? null : id));
+  const sectionRefs = useRef({});
+
+  useEffect(() => { localStorage.setItem("rd_filter", filter); }, [filter]);
+  useEffect(() => { localStorage.setItem("rd_view", view); }, [view]);
+
+  /* pôsteres TMDB */
+  useEffect(() => {
+    if (!TMDB_TOKEN) return;
+    let alive = true;
+    (async () => {
+      const all = [];
+      BRANCHES.forEach((b) => b.items.forEach((it) => all.push(it)));
+      for (const it of all) {
+        if (!alive) return;
+        if (posterCache[it.id] === undefined) await fetchPoster(it);
+      }
+      if (alive) setPosters({ ...posterCache });
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const persist = (set) => {
+    try { localStorage.setItem("rd_watched", JSON.stringify([...set])); } catch (_) {}
+  };
+
+  const toggle = (id) => setWatched((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    persist(next);
+    return next;
+  });
+
+  const resetAll = () => {
+    if (!confirm("Zerar todo o progresso?")) return;
+    const n = new Set(); setWatched(n); persist(n);
+  };
+
+  const lvl = FILTER_LEVEL[filter];
+  const visibleOf = (b) => b.items.filter((it) => FILTER_LEVEL[it.m] <= lvl);
+
+  const stats = useMemo(() => {
+    const per = {}; let totV = 0, doneV = 0, essT = 0, essD = 0;
+    BRANCHES.forEach((b) => {
+      const vis = visibleOf(b);
+      const done = vis.filter((it) => watched.has(it.id)).length;
+      per[b.id] = { total: vis.length, done };
+      totV += vis.length; doneV += done;
+      b.items.forEach((it) => { if (it.m === M.E) { essT++; if (watched.has(it.id)) essD++; } });
+    });
+    return { per, totV, doneV, essT, essD };
+  }, [watched, filter]);
+
+  const chrono = useMemo(() => {
+    const all = [];
+    BRANCHES.forEach((b) => visibleOf(b).forEach((it) => all.push({ ...it, branch: b })));
+    all.sort((a, z) => a.cy - z.cy);
+    return all;
+  }, [filter]);
+
+  const branchFrac = (id) => {
+    const b = BRANCHES.find((x) => x.id === id);
+    const done = b.items.filter((it) => watched.has(it.id)).length;
+    return b.items.length ? done / b.items.length : 0;
+  };
+
+  const scrollTo = (id) => { const el = sectionRefs.current[id]; if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
+
+  const essDone = stats.essT ? stats.essD / stats.essT : 0;
+  const doomReady = stats.essD >= stats.essT && stats.essT > 0;
+  const eraLabel = (cy) => (cy < 2000 ? `${Math.floor(cy)}` : `~${Math.floor(cy)}`);
+
+  return (
+    <div style={{ background: C.void, color: C.text, minHeight: "100vh", position: "relative", overflow: "hidden" }}>
+      <style>{`
+        .osw { font-family: 'Oswald', system-ui, sans-serif; }
+        .inr { font-family: 'Inter', system-ui, sans-serif; }
+        @keyframes twinkle { 0%,100% { opacity: var(--o); } 50% { opacity: calc(var(--o) * .25); } }
+        @keyframes pulseGlow { 0%,100% { filter: drop-shadow(0 0 8px currentColor); } 50% { filter: drop-shadow(0 0 20px currentColor); } }
+        .card-item { transition: transform .15s; }
+        .card-item:active { transform: scale(.985); }
+        @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+      `}</style>
+
+      <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
+        <div style={{ position: "absolute", inset: 0,
+          background: `radial-gradient(60% 42% at 50% -6%, #E5484D2E, transparent 62%),
+                       radial-gradient(48% 36% at 88% 34%, #8B7BFF1F, transparent 60%),
+                       radial-gradient(52% 40% at 6% 68%, #2DD4BF17, transparent 60%),
+                       radial-gradient(50% 40% at 55% 104%, #34D3991C, transparent 62%)` }} />
+        {STARS.map((st, i) => (
+          <span key={i} style={{ position: "absolute", left: `${st.x}%`, top: `${st.y}%`,
+            width: st.s, height: st.s, borderRadius: 4, background: st.c,
+            boxShadow: st.s > 2 ? `0 0 4px ${st.c}` : "none",
+            "--o": st.o, opacity: st.o, animation: `twinkle ${st.d}s ease-in-out infinite` }} />
+        ))}
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 220, opacity: 0.10,
+          backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "11px 11px",
+          maskImage: "linear-gradient(#000, transparent)", WebkitMaskImage: "linear-gradient(#000, transparent)" }} />
+      </div>
+
+      <CosmicField />
+
+      <div className="inr" style={{ maxWidth: 720, margin: "0 auto", padding: "22px 16px 64px", position: "relative", zIndex: 1 }}>
+
+        <header style={{ marginBottom: 18, textAlign: "center" }}>
+          <div className="osw" style={{ fontSize: 12, letterSpacing: 5, color: C.gold, textTransform: "uppercase" }}>
+            Rota até o fim do multiverso
+          </div>
+          <h1 className="osw" style={{ fontSize: 44, lineHeight: 0.98, margin: "8px 0 4px", fontWeight: 700,
+            letterSpacing: 1, textTransform: "uppercase",
+            background: `linear-gradient(180deg, ${C.text}, #C9C2E5 55%, ${C.mcu})`,
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            filter: "drop-shadow(0 4px 18px #E5484D44)" }}>
+            Vingadores<br/>Doomsday
+          </h1>
+          <div style={{ color: C.muted, fontSize: 13, marginTop: 6 }}>
+            Estreia nos cinemas · <b style={{ color: C.text }}>18 de dezembro de 2026</b>
+          </div>
+          <Countdown />
+        </header>
+
+        {view === "arvore" && (
+          <TreeMap branchFrac={branchFrac} onPick={scrollTo} doomReady={doomReady} essDone={essDone} />
+        )}
+
+        <div style={{ background: `linear-gradient(160deg, ${C.panel2}, ${C.panel})`, border: `1px solid ${C.line}`,
+          borderRadius: 16, padding: 16, margin: "16px 0 10px", boxShadow: "0 10px 30px #00000055" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+            <span className="osw" style={{ fontSize: 15, letterSpacing: 1.5 }}>SEU PROGRESSO</span>
+            <span style={{ fontSize: 13, color: C.muted }}>
+              {stats.doneV}/{stats.totV} no modo <b style={{ color: C.text }}>{FILTERS.find(f=>f.key===filter).label}</b>
+            </span>
+          </div>
+          <Bar frac={stats.totV ? stats.doneV / stats.totV : 0} color={C.mcu} />
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, alignItems: "center" }}>
+            <span style={{ fontSize: 12.5, color: C.muted }}>
+              Essenciais p/ o Doomsday: <b style={{ color: doomReady ? C.doom : C.gold }}>{stats.essD}/{stats.essT}</b>
+            </span>
+            <button onClick={resetAll}
+              style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent",
+                border: `1px solid ${C.line}`, color: C.muted, fontSize: 12, padding: "5px 10px",
+                borderRadius: 8, cursor: "pointer" }}>
+              <I.reset /> Zerar
+            </button>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 6, background: C.panel, border: `1px solid ${C.line}`,
+          borderRadius: 12, padding: 5, marginBottom: 8 }}>
+          {[
+            { k: "arvore", label: "Árvore por universo", Ic: I.branch },
+            { k: "crono", label: "Cronológica", Ic: I.clock },
+          ].map(({ k, label, Ic }) => {
+            const on = view === k;
+            return (
+              <button key={k} onClick={() => setView(k)} className="osw"
+                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                  padding: "10px 4px", borderRadius: 8, border: "none", cursor: "pointer",
+                  background: on ? `linear-gradient(135deg, ${C.spider}, #6A58E8)` : "transparent",
+                  color: on ? "#fff" : C.muted, fontWeight: 600, fontSize: 13 }}>
+                <Ic /> {label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "flex", gap: 6, background: C.panel, border: `1px solid ${C.line}`,
+          borderRadius: 12, padding: 5, marginBottom: 6 }}>
+          {FILTERS.map((f) => {
+            const on = filter === f.key;
+            return (
+              <button key={f.key} onClick={() => setFilter(f.key)} className="osw"
+                style={{ flex: 1, padding: "9px 4px", borderRadius: 8, border: "none", cursor: "pointer",
+                  background: on ? C.mcu : "transparent", color: on ? "#fff" : C.muted,
+                  fontWeight: 600, fontSize: 13.5 }}>
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+        <p style={{ fontSize: 12, color: C.muted, margin: "0 0 20px", paddingLeft: 4 }}>
+          {FILTERS.find((f) => f.key === filter).desc}.
+          {view === "crono" && " Ordem aproximada em que as histórias acontecem — não a ordem de lançamento."}
+        </p>
+
+        {view === "crono" && (
+          <div style={{ position: "relative", paddingLeft: 4 }}>
+            <div style={{ position: "absolute", left: 21, top: 8, bottom: 8, width: 2,
+              background: `linear-gradient(${C.gold}, ${C.mcu}, ${C.doom})` }} />
+            {chrono.map((it, idx) => {
+              const done = watched.has(it.id);
+              const isExp = expanded === it.id;
+              const b = it.branch;
+              const prev = chrono[idx - 1];
+              const newEra = !prev || Math.floor(prev.cy) !== Math.floor(it.cy);
+              return (
+                <React.Fragment key={it.id}>
+                  {newEra && (
+                    <div className="osw" style={{ margin: "14px 0 4px 40px",
+                      fontSize: 12, letterSpacing: 2, color: C.gold, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ width: 20, height: 1, background: C.gold, opacity: .6 }} />
+                      {eraLabel(it.cy)}
+                    </div>
+                  )}
+                  <div className="card-item"
+                    style={{ position: "relative", display: "flex", gap: 12, alignItems: "flex-start",
+                      padding: "7px 12px 7px 0" }}>
+                    <span onClick={(e) => { e.stopPropagation(); toggle(it.id); }}
+                      style={{ position: "relative", zIndex: 1, marginLeft: 12, marginTop: 20, cursor: "pointer",
+                      width: 20, height: 20, borderRadius: 20, flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: done ? b.color : C.panel2,
+                      border: `2px solid ${done ? b.color : C.line}`,
+                      boxShadow: done ? `0 0 10px ${b.color}99` : "none" }}>
+                      {done && <I.check />}
+                    </span>
+                    <div onClick={() => toggleExpand(it.id)}
+                      style={{ flex: 1, minWidth: 0, cursor: "pointer",
+                      background: done && !isExp ? "transparent" : `linear-gradient(150deg, ${C.panel2}, ${C.panel})`,
+                      border: `1px solid ${isExp ? b.color + "77" : (done ? "transparent" : C.line)}`,
+                      borderLeft: `3px solid ${b.color}`,
+                      borderRadius: 10, padding: "7px 11px", opacity: done && !isExp ? 0.5 : 1,
+                      boxShadow: isExp ? `0 0 18px ${b.color}22` : "none" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                      <Cover branch={b} it={it} posters={posters} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                          <span className="osw" style={{ fontSize: 11, color: C.muted, fontVariantNumeric: "tabular-nums" }}>
+                            {String(idx + 1).padStart(2, "0")}
+                          </span>
+                          {it.tv ? <I.tv /> : <I.film />}
+                          <span style={{ fontSize: 14, fontWeight: 500, textDecoration: done ? "line-through" : "none" }}>{it.t}</span>
+                          {it.m === M.E && <I.star />}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 10.5, color: b.color, fontWeight: 600, letterSpacing: .5,
+                            border: `1px solid ${b.color}55`, borderRadius: 5, padding: "1px 6px" }}>
+                            {b.title.split("(")[0].trim()}
+                          </span>
+                          <span style={{ fontSize: 11.5, color: C.muted }}>lançado em {it.y}</span>
+                          {it.note && <span style={{ fontSize: 11.5, color: b.color, fontStyle: "italic" }}>· {it.note}</span>}
+                        </div>
+                      </div>
+                      <I.chev style={{ transform: isExp ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0, opacity: .6 }} />
+                      </div>
+                      <Why it={it} color={b.color} open={isExp} />
+                    </div>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        )}
+
+        {view === "arvore" && BRANCHES.map((b) => {
+          const vis = visibleOf(b);
+          if (!vis.length) return null;
+          const st = stats.per[b.id];
+          const isOpen = open[b.id];
+          return (
+            <section key={b.id} ref={(el) => (sectionRefs.current[b.id] = el)}
+              style={{ marginBottom: 14, scrollMarginTop: 12 }}>
+              <button onClick={() => setOpen((o) => ({ ...o, [b.id]: !o[b.id] }))}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 12,
+                  background: `linear-gradient(135deg, ${b.color}1E, ${C.panel} 45%)`,
+                  border: `1px solid ${C.line}`, borderLeft: `4px solid ${b.color}`,
+                  borderRadius: 12, padding: "12px 14px", cursor: "pointer", textAlign: "left", color: C.text }}>
+                <Emblem kind={b.emblem} color={b.color} />
+                <span style={{ flex: 1 }}>
+                  <span className="osw" style={{ display: "block", fontSize: 16.5, fontWeight: 600, letterSpacing: 0.3 }}>{b.title}</span>
+                  <span style={{ display: "block", fontSize: 11.5, color: C.muted, marginTop: 1 }}>{b.sub}</span>
+                </span>
+                <span style={{ fontSize: 12.5, color: C.muted, fontVariantNumeric: "tabular-nums" }}>{st.done}/{st.total}</span>
+                <I.chev style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }} />
+              </button>
+
+              {isOpen && (
+                <div style={{ position: "relative", marginTop: 8, paddingLeft: 4 }}>
+                  <div style={{ position: "absolute", left: 21, top: 8, bottom: 26, width: 2,
+                    background: b.dashed
+                      ? `repeating-linear-gradient(${b.color}, ${b.color} 4px, transparent 4px, transparent 8px)`
+                      : `linear-gradient(${b.color}, ${b.color}55)` }} />
+                  {vis.map((it, idx) => {
+                    const done = watched.has(it.id);
+                    const isExp = expanded === it.id;
+                    return (
+                      <div key={it.id} className="card-item"
+                        style={{ position: "relative", display: "flex", gap: 12, alignItems: "flex-start",
+                          padding: "8px 12px 8px 0" }}>
+                        <span onClick={(e) => { e.stopPropagation(); toggle(it.id); }}
+                          style={{ position: "relative", zIndex: 1, marginLeft: 12, marginTop: 20, cursor: "pointer",
+                          width: 20, height: 20, borderRadius: 20, flexShrink: 0,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: done ? b.color : C.panel2,
+                          border: `2px solid ${done ? b.color : C.line}`,
+                          boxShadow: done ? `0 0 8px ${b.color}88` : "none" }}>
+                          {done && <I.check />}
+                        </span>
+                        <div onClick={() => toggleExpand(it.id)}
+                          style={{ flex: 1, minWidth: 0, cursor: "pointer",
+                          background: done && !isExp ? "transparent" : `linear-gradient(150deg, ${C.panel2}, ${C.panel})`,
+                          border: `1px solid ${isExp ? b.color + "77" : (done ? "transparent" : C.line)}`,
+                          borderRadius: 10, padding: "7px 11px", opacity: done && !isExp ? 0.55 : 1,
+                          boxShadow: isExp ? `0 0 18px ${b.color}22` : "none" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                          <Cover branch={b} it={it} posters={posters} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                              <span className="osw" style={{ fontSize: 11, color: C.muted, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+                                {String(idx + 1).padStart(2, "0")}
+                              </span>
+                              {it.tv ? <I.tv /> : <I.film />}
+                              <span style={{ fontSize: 14, fontWeight: 500, textDecoration: done ? "line-through" : "none" }}>{it.t}</span>
+                              {it.m === M.E && <I.star />}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 11.5, color: C.muted }}>{it.y} · história em {eraLabel(it.cy)}</span>
+                              {it.note && <span style={{ fontSize: 11.5, color: b.color, fontStyle: "italic" }}>· {it.note}</span>}
+                            </div>
+                          </div>
+                          <I.chev style={{ transform: isExp ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0, opacity: .6 }} />
+                          </div>
+                          <Why it={it} color={b.color} open={isExp} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {b.merge && (
+                    <div style={{ marginLeft: 33, marginTop: 2, display: "flex", alignItems: "center", gap: 6,
+                      fontSize: 11.5, color: b.color }}>
+                      <span style={{ fontSize: 14 }}>⤵</span> {b.merge}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
+          );
+        })}
+
+        <div style={{ marginTop: 22, position: "relative", borderRadius: 18, overflow: "hidden",
+          border: `1px solid ${doomReady ? C.doom : C.line}`,
+          background: doomReady
+            ? `radial-gradient(120% 120% at 50% 0%, ${C.doom}26, ${C.panel} 60%)`
+            : `radial-gradient(120% 120% at 50% 0%, ${C.mcu}18, ${C.panel} 60%)`,
+          boxShadow: doomReady ? `0 0 34px ${C.doom}44` : "0 10px 30px #00000055" }}>
+          <div aria-hidden style={{ position: "absolute", inset: 0, opacity: .07,
+            backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "10px 10px" }} />
+          <div style={{ padding: "22px 18px", textAlign: "center", position: "relative" }}>
+            <I.zap size={24} color={doomReady ? C.doom : C.gold} style={{ animation: "pulseGlow 2.6s ease-in-out infinite", color: doomReady ? C.doom : C.gold }} />
+            <div className="osw" style={{ fontSize: 12, letterSpacing: 3, color: C.gold, textTransform: "uppercase", marginTop: 6 }}>
+              A convergência
+            </div>
+            <div className="osw" style={{ fontSize: 27, fontWeight: 700, margin: "2px 0 6px", letterSpacing: 1 }}>
+              VINGADORES: DOOMSDAY
+            </div>
+            <p style={{ fontSize: 13, color: C.muted, margin: "0 auto 12px", maxWidth: 390 }}>
+              Três universos colidem: Vingadores, Novos Vingadores, Quarteto Fantástico,
+              os Wakandanos e os X‑Men originais — contra o Doutor Destino.
+            </p>
+            <div style={{ maxWidth: 320, margin: "0 auto" }}>
+              <Bar frac={essDone} color={doomReady ? C.doom : C.gold} />
+            </div>
+            <div style={{ fontSize: 12.5, color: doomReady ? C.doom : C.muted, marginTop: 8, fontWeight: 600 }}>
+              {doomReady ? "✓ Essenciais concluídos — você está pronto pra estreia"
+                         : `${stats.essD}/${stats.essT} essenciais assistidos`}
+            </div>
+          </div>
+          <div style={{ borderTop: `1px dashed ${C.line}`, padding: "10px 18px", textAlign: "center",
+            fontSize: 11.5, color: C.muted, position: "relative" }}>
+            e a saga fecha em <b style={{ color: C.text }}>Vingadores: Secret Wars</b> · 17 · 12 · 2027
+          </div>
+        </div>
+
+        <p style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: 18, lineHeight: 1.7 }}>
+          Toque no card pra ver por que aquele título importa · toque na bolinha pra marcar como assistido.<br />
+          ⭐ = essencial pro Doomsday · linhas tracejadas = canon frouxo · ordem cronológica é aproximada.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function TreeMap({ branchFrac, onPick, doomReady, essDone }) {
+  const trunkX = 192;
+  const node = (id, x, y, label, color, sub, big) => {
+    const frac = id === "doomsday" ? essDone : branchFrac(id);
+    const r = big ? 15 : 9;
+    return (
+      <g key={id} style={{ cursor: "pointer" }} onClick={() => id !== "doomsday" && onPick(id)}>
+        <circle cx={x} cy={y} r={r + 12} fill="transparent" />
+        <Ring cx={x} cy={y} r={r + 4} frac={frac} color={color} w={big ? 4 : 3} />
+        <circle cx={x} cy={y} r={r} fill={color} style={{ filter: `drop-shadow(0 0 ${big ? 10 : 5}px ${color})` }} />
+        {big && <text x={x} y={y + 4} textAnchor="middle" fontSize="12" fontWeight="700" fill="#070510" className="osw">DD</text>}
+        <text x={x} y={y - r - 9} textAnchor="middle" fontSize="10.5" fontWeight="600" fill={C.text} className="osw">{label}</text>
+        {sub && <text x={x} y={y + r + 15} textAnchor="middle" fontSize="8.5" fill={C.muted}>{sub}</text>}
+      </g>
+    );
+  };
+  return (
+    <div style={{ background: `linear-gradient(180deg, ${C.panel2}, ${C.panel})`, border: `1px solid ${C.line}`,
+      borderRadius: 16, padding: "8px 4px 4px", boxShadow: "0 10px 30px #00000055" }}>
+      <div className="osw" style={{ fontSize: 12, letterSpacing: 2, color: C.muted, padding: "6px 12px 0" }}>
+        MAPA DAS CONFLUÊNCIAS · toque num galho pra pular até ele
+      </div>
+      <svg viewBox="0 0 384 500" style={{ width: "100%", height: "auto", display: "block" }}>
+        <defs>
+          <linearGradient id="trunk" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={C.mcu} /><stop offset="1" stopColor={C.gold} />
+          </linearGradient>
+        </defs>
+        <path d={`M ${trunkX} 60 L ${trunkX} 430`} stroke="url(#trunk)" strokeWidth="5" fill="none" strokeLinecap="round" />
+        <path d={`M ${trunkX} 430 L ${trunkX} 476`} stroke={C.line} strokeWidth="3" strokeDasharray="4 6" fill="none" />
+        <path d={`M 96 150 C 140 150, 150 175, ${trunkX} 185`} stroke={C.series} strokeWidth="2.5" fill="none" opacity="0.8" />
+        <path d={`M 74 250 C 120 250, 140 240, ${trunkX} 238`} stroke={C.spider} strokeWidth="2.5" fill="none" opacity="0.8" />
+        <path d={`M 74 315 C 120 315, 140 305, ${trunkX} 300`} stroke={C.xmen} strokeWidth="2.5" fill="none" opacity="0.8" />
+        <path d={`M 310 215 C 265 215, 250 225, ${trunkX} 238`} stroke={C.extra} strokeWidth="2" strokeDasharray="3 5" fill="none" opacity="0.7" />
+        <path d={`M 310 355 C 265 355, 250 350, ${trunkX} 350`} stroke={C.extra} strokeWidth="2" strokeDasharray="3 5" fill="none" opacity="0.7" />
+        <circle cx={trunkX} cy={185} r="3.5" fill={C.series} />
+        <circle cx={trunkX} cy={238} r="3.5" fill={C.spider} />
+        <circle cx={trunkX} cy={300} r="3.5" fill={C.xmen} />
+        <circle cx={trunkX} cy={350} r="3.5" fill={C.gold} />
+        {node("infinito", trunkX, 74, "Saga do Infinito", C.mcu, "Fases 1–3")}
+        {node("multiverso", trunkX, 150, "Saga do Multiverso", C.mcu, "Fases 4–6")}
+        <text x={trunkX + 10} y={188} fontSize="8.5" fill={C.muted}>Sem Volta pra Casa</text>
+        <text x={trunkX + 10} y={241} fontSize="8.5" fill={C.muted}>Deadpool & Wolverine</text>
+        <text x={trunkX + 10} y={303} fontSize="8.5" fill={C.muted}>Novos Vingadores</text>
+        <text x={trunkX + 10} y={353} fontSize="8.5" fill={C.muted}>QF: Primeiros Passos</text>
+        {node("series", 96, 150, "Séries D+", C.series, "MCU")}
+        {node("spider", 74, 250, "Aranhas alt.", C.spider, "Raimi/Webb")}
+        {node("xmen", 74, 315, "X-Men Fox", C.xmen, "+Deadpool")}
+        {node("sony", 310, 215, "Sony", C.extra, "Venom…")}
+        {node("qf", 310, 355, "QF antigos", C.extra, "Fox")}
+        {node("doomsday", trunkX, 415, "DOOMSDAY", doomReady ? C.doom : C.gold, "18·12·2026", true)}
+        <text x={trunkX} y={492} textAnchor="middle" fontSize="8.5" fill={C.muted}>Secret Wars · 2027</text>
+      </svg>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
