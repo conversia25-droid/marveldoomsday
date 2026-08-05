@@ -26,6 +26,10 @@ O app ja vem com manifest, icones e service worker. Em HTTPS, como no dominio do
 - No iPhone/iPad, use **Compartilhar -> Adicionar a Tela de Inicio**.
 - O cache offline cobre a tela principal, manifest, icones, `config.js` e `posters.json`. Login, sincronizacao e capas externas continuam dependendo de internet.
 
+## Pagamento premium
+
+O acesso vitalicio custa **R$9,90** e sera vendido somente por **Pix**. Para liberar automaticamente, o proximo passo e integrar Mercado Pago ou Asaas com webhook, gravando o usuario como premium no Supabase depois da confirmacao do pagamento.
+
 ## Gerar capas com TMDB
 
 Use o **Token de Leitura da API** do TMDB como variavel de ambiente. Nao coloque o token no `index.html` antes de publicar.
@@ -87,6 +91,8 @@ Fluxo no app:
 Para habilitar/atualizar perfis, rode `supabase/schema.sql` novamente. Ele adiciona campos em `profiles` e cria a RPC `update_own_profile`, que permite ao usuario editar só os campos seguros do proprio perfil, sem mexer em `role`.
 
 O mesmo schema tambem cria o bucket publico `avatars` no Supabase Storage. Cada usuario autenticado so consegue enviar, atualizar ou apagar arquivos dentro da propria pasta, e o app aceita JPG, PNG, WEBP ou GIF ate 2 MB.
+
+Se voce ja tinha rodado o schema antes e so precisa ativar o upload da foto de perfil, rode apenas `supabase/storage-avatar.sql` no SQL Editor do Supabase.
 
 ### Login com Google
 

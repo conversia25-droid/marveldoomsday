@@ -631,7 +631,7 @@ function AuthBox({
 
 function LoginScreen({
   email, password, message, syncState, loading,
-  onEmail, onPassword, onSignIn, onSignUp, onGoogle, onGuest,
+  onEmail, onPassword, onSignIn, onSignUp, onGoogle, onLifetime, onGuest,
 }) {
   const inputStyle = {
     width: "100%", border: `1px solid ${C.line}`, borderRadius: 10, padding: "12px 12px",
@@ -685,6 +685,18 @@ function LoginScreen({
               Vingadores<br/>Doomsday
             </h1>
             <div style={{ color: C.muted, fontSize: 13 }}>Entre para salvar seu progresso na nuvem.</div>
+            <button type="button" onClick={onLifetime}
+              style={{ marginTop: 12, border: `1px solid ${C.doom}88`, background: `${C.doom}18`, color: C.text,
+                borderRadius: 999, padding: "8px 13px", display: "inline-flex", alignItems: "center",
+                gap: 9, cursor: "pointer", boxShadow: `0 0 18px ${C.doom}22` }}>
+              <span className="osw" style={{ color: C.doom, fontSize: 18, fontWeight: 700, lineHeight: 1 }}>
+                R$9,90
+              </span>
+              <span style={{ textAlign: "left", fontSize: 11.5, color: C.muted, lineHeight: 1.2 }}>
+                Acesso vitalício<br />
+                <b style={{ color: C.text, fontWeight: 700 }}>pagamento via Pix</b>
+              </span>
+            </button>
           </div>
 
           <form onSubmit={onSignIn}
@@ -730,6 +742,9 @@ function LoginScreen({
                 padding: "8px 10px", cursor: "pointer", fontSize: 12.5 }}>
               Entrar sem conta
             </button>
+            <div style={{ marginTop: 4, textAlign: "center", color: C.gold, fontSize: 11.5, lineHeight: 1.4 }}>
+              Premium de lançamento: R$9,90 no Pix, sem mensalidade.
+            </div>
           </form>
         </main>
       </div>
@@ -1173,6 +1188,10 @@ function App() {
     }
   };
 
+  const showLifetimeAccess = () => {
+    setAuthMessage("Acesso vitalício R$9,90 no Pix: próximo passo é gerar QR Code e liberar premium automaticamente apos o pagamento.");
+  };
+
   const changeProfileField = (field, value) => {
     setProfileForm((current) => ({ ...current, [field]: value }));
     setProfileMessage("");
@@ -1201,11 +1220,19 @@ function App() {
     const path = `${session.user.id}/avatar-${Date.now()}.${extension}`;
     const { error } = await routeClient.storage
       .from(AVATAR_BUCKET)
-      .upload(path, file, { cacheControl: "3600", contentType: file.type, upsert: true });
+      .upload(path, file, { cacheControl: "3600", contentType: file.type, upsert: false });
 
     setProfileUploading(false);
     if (error) {
-      setProfileMessage("Rode o schema atualizado no Supabase para criar o bucket de fotos.");
+      console.warn("Avatar upload failed", error);
+      const details = `${error.message || ""} ${error.code || ""} ${error.statusCode || ""}`.toLowerCase();
+      if (details.includes("bucket") || details.includes("nosuchbucket")) {
+        setProfileMessage("Bucket avatars nao existe. Rode supabase/storage-avatar.sql no Supabase.");
+      } else if (details.includes("row-level") || details.includes("policy") || details.includes("rls")) {
+        setProfileMessage("Permissao do bucket bloqueou o upload. Rode supabase/storage-avatar.sql no Supabase.");
+      } else {
+        setProfileMessage(`Falha ao enviar foto: ${error.message || "verifique o Storage do Supabase"}`);
+      }
       return;
     }
 
@@ -1308,6 +1335,7 @@ function App() {
         onSignIn={signIn}
         onSignUp={signUp}
         onGoogle={signInWithGoogle}
+        onLifetime={showLifetimeAccess}
         onGuest={() => { setGuestMode(true); setAuthMessage(""); }}
       />
     );
