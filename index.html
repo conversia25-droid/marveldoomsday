@@ -472,6 +472,23 @@ function cleanAuthUrl() {
   window.history.replaceState({}, document.title, cleanPath || "/");
 }
 
+async function readInitialSession(client) {
+  const url = new URL(window.location.href);
+  const authCode = url.searchParams.get("code");
+
+  if (authCode && client.auth.exchangeCodeForSession) {
+    const { data, error } = await client.auth.exchangeCodeForSession(authCode);
+    cleanAuthUrl();
+    if (error) throw error;
+    return data.session || null;
+  }
+
+  const { data, error } = await client.auth.getSession();
+  cleanAuthUrl();
+  if (error) throw error;
+  return data.session || null;
+}
+
 function rowsToBranches(branchRows, movieRows) {
   const byId = {};
   branchRows.forEach((row) => {
@@ -756,18 +773,18 @@ function App() {
     }
     let alive = true;
 
-    routeClient.auth.getSession()
-      .then(({ data }) => {
+    readInitialSession(routeClient)
+      .then((initialSession) => {
         if (!alive) return;
-        setSession(data.session || null);
+        setSession(initialSession || null);
+        if (initialSession) setGuestMode(false);
+        setAuthReady(true);
+      })
+      .catch((error) => {
+        if (!alive) return;
+        setAuthMessage(error.message || "Nao foi possivel concluir o login.");
         setAuthReady(true);
         cleanAuthUrl();
-      })
-      .catch(() => {
-        if (alive) {
-          setAuthReady(true);
-          cleanAuthUrl();
-        }
       });
 
     const { data } = routeClient.auth.onAuthStateChange((_event, nextSession) => {

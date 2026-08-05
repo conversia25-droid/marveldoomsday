@@ -92,6 +92,8 @@ Se o Google voltar para `http://localhost:3000`, troque o **Site URL** no Supaba
 
 O app usa PKCE e limpa automaticamente `#access_token...` ou `?code=...` da barra depois que a sessao e criada.
 
+No fluxo PKCE, ver `?code=...` por alguns segundos e normal. Se ele ficar parado na barra, a URL provavelmente nao esta servindo o app ou nao esta liberada nos redirects do Supabase.
+
 ### Variaveis no EasyPanel
 
 Para o TMDB, variaveis do EasyPanel ficam no container/nginx, nao no navegador. Para usar o token sem expor, use uma destas rotas:
