@@ -88,6 +88,10 @@ Depois cole o **Client ID** e **Client Secret** no provider Google do Supabase.
 
 Em **Authentication -> URL Configuration**, coloque a URL final do site em **Site URL** e adicione tambem a URL local em **Redirect URLs** se for testar no navegador local.
 
+Se o Google voltar para `http://localhost:3000`, troque o **Site URL** no Supabase para a URL real do app. Em desenvolvimento, adicione exatamente a URL local que voce usa, por exemplo `http://localhost:3000` ou `http://127.0.0.1:8765`.
+
+O app usa PKCE e limpa automaticamente `#access_token...` ou `?code=...` da barra depois que a sessao e criada.
+
 ### Variaveis no EasyPanel
 
 Para o TMDB, variaveis do EasyPanel ficam no container/nginx, nao no navegador. Para usar o token sem expor, use uma destas rotas:

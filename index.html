@@ -455,8 +455,21 @@ async function fetchPoster(it) {
 function createRouteClient() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !window.supabase || !window.supabase.createClient) return null;
   return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true },
+    auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, flowType: "pkce" },
   });
+}
+
+function cleanAuthUrl() {
+  const url = new URL(window.location.href);
+  const authHash = /access_token|refresh_token|provider_token|expires_at|token_type/.test(url.hash);
+  const authSearch = ["code", "error", "error_code", "error_description"].some((key) => url.searchParams.has(key));
+  if (!authHash && !authSearch) return;
+
+  if (authHash) url.hash = "";
+  ["code", "error", "error_code", "error_description"].forEach((key) => url.searchParams.delete(key));
+
+  const cleanPath = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, document.title, cleanPath || "/");
 }
 
 function rowsToBranches(branchRows, movieRows) {
@@ -748,9 +761,13 @@ function App() {
         if (!alive) return;
         setSession(data.session || null);
         setAuthReady(true);
+        cleanAuthUrl();
       })
       .catch(() => {
-        if (alive) setAuthReady(true);
+        if (alive) {
+          setAuthReady(true);
+          cleanAuthUrl();
+        }
       });
 
     const { data } = routeClient.auth.onAuthStateChange((_event, nextSession) => {
@@ -758,6 +775,7 @@ function App() {
       if (nextSession) setGuestMode(false);
       setAuthReady(true);
       setAuthMessage("");
+      if (nextSession) cleanAuthUrl();
     });
 
     return () => {
