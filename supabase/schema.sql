@@ -135,6 +135,21 @@ as $$
   );
 $$;
 
+create or replace function public.has_lifetime_access()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = auth.uid()
+      and premium_lifetime = true
+  );
+$$;
+
 create table if not exists public.branches (
   id text primary key,
   color text not null default '#8A94A6',
@@ -288,18 +303,18 @@ using (user_id = auth.uid());
 drop policy if exists "watch progress own insert" on public.watch_progress;
 create policy "watch progress own insert"
 on public.watch_progress for insert
-with check (user_id = auth.uid());
+with check (user_id = auth.uid() and public.has_lifetime_access());
 
 drop policy if exists "watch progress own update" on public.watch_progress;
 create policy "watch progress own update"
 on public.watch_progress for update
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+using (user_id = auth.uid() and public.has_lifetime_access())
+with check (user_id = auth.uid() and public.has_lifetime_access());
 
 drop policy if exists "watch progress own delete" on public.watch_progress;
 create policy "watch progress own delete"
 on public.watch_progress for delete
-using (user_id = auth.uid());
+using (user_id = auth.uid() and public.has_lifetime_access());
 
 drop policy if exists "purchases own or admin read" on public.purchases;
 create policy "purchases own or admin read"
@@ -348,6 +363,8 @@ grant insert, update, delete on public.branches, public.movies to authenticated;
 grant select on public.profiles to anon, authenticated;
 grant update on public.profiles to authenticated;
 grant execute on function public.update_own_profile(text, text, text, boolean) to authenticated;
+revoke execute on function public.has_lifetime_access() from public;
+grant execute on function public.has_lifetime_access() to authenticated;
 grant select, insert, update, delete on public.watch_progress to authenticated;
 grant select on public.purchases to authenticated;
 

@@ -17,6 +17,21 @@ alter table public.profiles add column if not exists premium_since timestamptz;
 alter table public.profiles add column if not exists premium_source text;
 alter table public.profiles add column if not exists asaas_customer_id text;
 
+create or replace function public.has_lifetime_access()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = auth.uid()
+      and premium_lifetime = true
+  );
+$$;
+
 create unique index if not exists profiles_asaas_customer_id_uidx
 on public.profiles(asaas_customer_id)
 where asaas_customer_id is not null;
@@ -64,11 +79,29 @@ for each row execute function public.set_updated_at();
 alter table public.purchases enable row level security;
 alter table public.payment_events enable row level security;
 
+drop policy if exists "watch progress own insert" on public.watch_progress;
+create policy "watch progress own insert"
+on public.watch_progress for insert
+with check (user_id = auth.uid() and public.has_lifetime_access());
+
+drop policy if exists "watch progress own update" on public.watch_progress;
+create policy "watch progress own update"
+on public.watch_progress for update
+using (user_id = auth.uid() and public.has_lifetime_access())
+with check (user_id = auth.uid() and public.has_lifetime_access());
+
+drop policy if exists "watch progress own delete" on public.watch_progress;
+create policy "watch progress own delete"
+on public.watch_progress for delete
+using (user_id = auth.uid() and public.has_lifetime_access());
+
 drop policy if exists "purchases own or admin read" on public.purchases;
 create policy "purchases own or admin read"
 on public.purchases for select
 using (user_id = auth.uid() or public.is_route_admin());
 
+revoke execute on function public.has_lifetime_access() from public;
+grant execute on function public.has_lifetime_access() to authenticated;
 grant select on public.purchases to authenticated;
 
 commit;

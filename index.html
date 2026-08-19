@@ -652,7 +652,7 @@ function AuthBox({
     <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.line}`,
       display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
       <span style={{ flex: 1, minWidth: 180, fontSize: 12.5, color: C.muted }}>
-        Visitante · progresso salvo só neste aparelho
+        Visitante · entre para liberar marcações
         {syncState && <span> · {syncState}</span>}
       </span>
       <button type="button" onClick={onOpenLogin}
@@ -1074,6 +1074,32 @@ function App() {
   const [expanded, setExpanded] = useState(null);
   const toggleExpand = (id) => setExpanded((e) => (e === id ? null : id));
   const sectionRefs = useRef({});
+  const premiumPromptedRef = useRef("");
+  const progressLocked = !!routeClient && (!session || !profile?.premium_lifetime);
+
+  function seedPurchaseForm(sourceProfile = profile) {
+    if (!session) return;
+    const fallback = profileFromSession(session);
+    setPurchaseForm({
+      name: sourceProfile?.display_name || fallback.display_name || session.user.email || "",
+      cpfCnpj: "",
+    });
+    setPixPayment(null);
+  }
+
+  function requestPremiumCheckout(message = "") {
+    if (!routeClient) return true;
+    if (!session) {
+      setGuestMode(false);
+      setAuthMessage(`Entre primeiro para liberar as marcações com acesso vitalício ${LIFETIME_PRICE_LABEL}.`);
+      return false;
+    }
+    if (profile?.premium_lifetime) return true;
+    seedPurchaseForm(profile);
+    setPurchaseMessage(message || `Para marcar filmes e salvar progresso, ative o acesso vitalício ${LIFETIME_PRICE_LABEL} no Pix.`);
+    setPurchaseOpen(true);
+    return false;
+  }
 
   useEffect(() => { localStorage.setItem("rd_filter", filter); }, [filter]);
   useEffect(() => { localStorage.setItem("rd_view", view); }, [view]);
@@ -1123,6 +1149,7 @@ function App() {
       setPurchaseOpen(false);
       setPurchaseMessage("");
       setPixPayment(null);
+      premiumPromptedRef.current = "";
       setProfileForm(profileToForm(null, session));
       return;
     }
@@ -1140,6 +1167,12 @@ function App() {
       const next = error ? fallback : { ...fallback, ...(data || {}) };
       setProfile(next);
       setProfileForm(profileToForm(next, session));
+      if (!next.premium_lifetime && premiumPromptedRef.current !== session.user.id) {
+        premiumPromptedRef.current = session.user.id;
+        seedPurchaseForm(next);
+        setPurchaseMessage(`Para salvar seu progresso, ative o acesso vitalício ${LIFETIME_PRICE_LABEL} no Pix.`);
+        setPurchaseOpen(true);
+      }
     })();
 
     return () => { alive = false; };
@@ -1243,7 +1276,17 @@ function App() {
   useEffect(() => {
     if (!routeClient) return;
     if (!session) {
-      try { setWatched(new Set(JSON.parse(localStorage.getItem("rd_watched") || "[]"))); } catch {}
+      setWatched(new Set());
+      setSyncState(guestMode ? "premium para marcar" : "");
+      return;
+    }
+    if (!profile) {
+      setSyncState("verificando acesso");
+      return;
+    }
+    if (!profile.premium_lifetime) {
+      setWatched(new Set());
+      setSyncState("premium para marcar");
       return;
     }
 
@@ -1277,10 +1320,11 @@ function App() {
     })();
 
     return () => { alive = false; };
-  }, [routeClient, session && session.user.id]);
+  }, [routeClient, session && session.user.id, profile?.premium_lifetime, guestMode]);
 
   const saveRemoteProgress = async (id, done) => {
     if (!routeClient || !session) return;
+    if (!profile?.premium_lifetime) return;
     setSyncState("salvando");
     const request = done
       ? routeClient.from("watch_progress").upsert({
@@ -1294,15 +1338,19 @@ function App() {
     setSyncState(error ? "falha ao salvar" : "salvo");
   };
 
-  const toggle = (id) => setWatched((prev) => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    persist(next);
-    saveRemoteProgress(id, next.has(id));
-    return next;
-  });
+  const toggle = (id) => {
+    if (!requestPremiumCheckout(`Para marcar filmes e salvar progresso, ative o acesso vitalício ${LIFETIME_PRICE_LABEL} no Pix.`)) return;
+    setWatched((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      persist(next);
+      saveRemoteProgress(id, next.has(id));
+      return next;
+    });
+  };
 
   const resetAll = async () => {
+    if (!requestPremiumCheckout(`Para zerar e sincronizar progresso, ative o acesso vitalício ${LIFETIME_PRICE_LABEL} no Pix.`)) return;
     if (!confirm("Zerar todo o progresso?")) return;
     const n = new Set(); setWatched(n); persist(n);
     if (routeClient && session) {
@@ -1370,7 +1418,7 @@ function App() {
     return next;
   };
 
-  const openPurchase = () => {
+  const openPurchase = (message = "") => {
     if (!routeClient) {
       setAuthMessage("Configure o Supabase para gerar pagamentos Pix.");
       return;
@@ -1384,13 +1432,8 @@ function App() {
       setPurchaseMessage("Seu acesso premium vitalício ja esta ativo.");
       setPixPayment(null);
     } else {
-      const fallback = profileFromSession(session);
-      setPurchaseForm({
-        name: profile?.display_name || fallback.display_name || session.user.email || "",
-        cpfCnpj: "",
-      });
-      setPurchaseMessage("");
-      setPixPayment(null);
+      seedPurchaseForm(profile);
+      setPurchaseMessage(message || "");
     }
     setPurchaseOpen(true);
   };
@@ -1569,6 +1612,7 @@ function App() {
     setPurchaseOpen(false);
     setPurchaseMessage("");
     setPixPayment(null);
+    premiumPromptedRef.current = "";
     setSyncState("modo local");
   };
 
@@ -1689,6 +1733,15 @@ function App() {
             </span>
           </div>
           <Bar frac={stats.totV ? stats.doneV / stats.totV : 0} color={C.mcu} />
+          {progressLocked && (
+            <button type="button"
+              onClick={() => requestPremiumCheckout(`Para marcar filmes e salvar progresso, ative o acesso vitalício ${LIFETIME_PRICE_LABEL} no Pix.`)}
+              style={{ width: "100%", marginTop: 11, padding: "10px 12px", borderRadius: 10,
+                border: `1px solid ${C.gold}88`, background: `${C.gold}16`, color: C.text,
+                cursor: "pointer", textAlign: "left", fontSize: 12.5, lineHeight: 1.35 }}>
+              Marcações e progresso ficam liberados com o acesso vitalício {LIFETIME_PRICE_LABEL} no Pix.
+            </button>
+          )}
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12.5, color: C.muted }}>
               Essenciais p/ o Doomsday: <b style={{ color: doomReady ? C.doom : C.gold }}>{stats.essD}/{stats.essT}</b>
@@ -1786,7 +1839,7 @@ function App() {
                     style={{ position: "relative", display: "flex", gap: 12, alignItems: "flex-start",
                       padding: "7px 12px 7px 0" }}>
                     <span onClick={(e) => { e.stopPropagation(); toggle(it.id); }}
-                      style={{ position: "relative", zIndex: 1, marginLeft: 12, marginTop: 20, cursor: "pointer",
+                      style={{ position: "relative", zIndex: 1, marginLeft: 12, marginTop: 20, cursor: progressLocked ? "not-allowed" : "pointer",
                       width: 20, height: 20, borderRadius: 20, flexShrink: 0,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       background: done ? b.color : C.panel2,
@@ -1868,7 +1921,7 @@ function App() {
                         style={{ position: "relative", display: "flex", gap: 12, alignItems: "flex-start",
                           padding: "8px 12px 8px 0" }}>
                         <span onClick={(e) => { e.stopPropagation(); toggle(it.id); }}
-                          style={{ position: "relative", zIndex: 1, marginLeft: 12, marginTop: 20, cursor: "pointer",
+                          style={{ position: "relative", zIndex: 1, marginLeft: 12, marginTop: 20, cursor: progressLocked ? "not-allowed" : "pointer",
                           width: 20, height: 20, borderRadius: 20, flexShrink: 0,
                           display: "flex", alignItems: "center", justifyContent: "center",
                           background: done ? b.color : C.panel2,

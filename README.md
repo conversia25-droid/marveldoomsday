@@ -30,6 +30,8 @@ O app ja vem com manifest, icones e service worker. Em HTTPS, como no dominio do
 
 O acesso vitalicio custa **R$9,99** e sera vendido somente por **Pix**. No app, o usuario logado gera um QR Code Pix pelo Asaas; quando o pagamento e recebido, o webhook marca `premium_lifetime = true` no Supabase.
 
+As marcacoes e o progresso sincronizado exigem premium. Depois do login, se o usuario ainda nao tiver `premium_lifetime`, o app abre o Pix automaticamente. Se ele tentar marcar qualquer filme sem premium, o Pix tambem aparece. As policies do Supabase bloqueiam escrita em `watch_progress` para contas sem acesso vitalicio.
+
 Rode o schema completo ou, se o restante do banco ja estiver pronto, rode apenas:
 
     supabase/payment-asaas.sql
@@ -128,7 +130,8 @@ Fluxo no app:
 
 - A primeira tela pede login por email/senha.
 - O botao **Entrar com Google** usa o provider Google do Supabase.
-- Ao entrar, o progresso local e enviado para `watch_progress`.
+- Ao entrar, o app pede o Pix se o usuario ainda nao tiver acesso vitalicio.
+- Depois do pagamento confirmado, o progresso local e enviado para `watch_progress`.
 - Depois disso, cada item marcado/desmarcado e salvo no Supabase.
 - Usuarios logados podem editar nome, avatar, bio e deixar o perfil publico para recursos sociais futuros.
 - O botao **Entrar sem conta** abre a rota em modo visitante e salva progresso só no navegador.
