@@ -167,6 +167,7 @@ const FILTERS = [
   { key: "completista", label: "Tudo", desc: "Acervo completo" },
 ];
 const TARGET = new Date("2026-12-18T00:00:00-03:00");
+const INTRO_POSTER_IDS = ["i01", "i06", "i22", "m07", "x01", "m09"];
 
 const STARS = Array.from({ length: 130 }, (_, i) => ({
   x: (i * 137.508) % 100, y: (i * 61.803) % 100,
@@ -664,8 +665,87 @@ function AuthBox({
   );
 }
 
+function IntroVideo({ posters = {} }) {
+  const frames = [
+    { title: "Rota ate Doomsday", text: "A ordem certa para chegar no filme sem se perder.", icon: I.branch, color: C.mcu },
+    { title: "Essencial ou completo", text: "Escolha o tamanho da maratona para o seu tempo.", icon: I.clock, color: C.spider },
+    { title: "Marque os assistidos", text: "Seu progresso fica preso na sua conta.", icon: I.check, color: C.doom },
+    { title: "Pago uma vez", text: `${LIFETIME_PRICE_LABEL} no Pix libera as marcacoes para sempre.`, icon: I.zap, color: C.gold },
+  ];
+  const posterItems = INTRO_POSTER_IDS.map((id) => posters[id]).filter(Boolean);
+  const posterLoop = posterItems.length ? [...posterItems, ...posterItems] : [];
+
+  return (
+    <section aria-label="Video de apresentacao da Rota Doomsday"
+      style={{ margin: "0 0 14px", border: `1px solid ${C.line}`, borderRadius: 14,
+        overflow: "hidden", background: "#0D0A18", boxShadow: "0 16px 42px #00000066" }}>
+      <div style={{ height: 34, display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 10px", background: "#161128", borderBottom: `1px solid ${C.line}` }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: C.text, fontSize: 11.5, fontWeight: 700 }}>
+          <span style={{ width: 18, height: 18, borderRadius: 999, display: "grid", placeItems: "center",
+            background: C.doom, color: C.void, fontSize: 9 }}>▶</span>
+          Veja como funciona
+        </span>
+        <span className="osw" style={{ color: C.muted, fontSize: 11, letterSpacing: 1.2 }}>00:28</span>
+      </div>
+
+      <div style={{ position: "relative", aspectRatio: "16 / 9", minHeight: 210, overflow: "hidden",
+        background: `linear-gradient(160deg, #070510 0%, #171126 58%, #230D17 100%)` }}>
+        <div aria-hidden style={{ position: "absolute", inset: 0, opacity: .18,
+          backgroundImage: "radial-gradient(#FFFFFF 0.8px, transparent 1.1px)", backgroundSize: "13px 13px" }} />
+
+        <div aria-hidden style={{ position: "absolute", inset: "15px 0 auto", display: "flex",
+          gap: 8, width: "max-content", animation: "introPosterDrift 18s linear infinite" }}>
+          {posterLoop.length ? posterLoop.map((poster, index) => (
+            <img key={`${poster}-${index}`} src={`https://image.tmdb.org/t/p/w154${poster}`} alt=""
+              style={{ width: 58, height: 86, objectFit: "cover", borderRadius: 7,
+                border: `1px solid ${C.text}22`, opacity: .45, transform: index % 2 ? "translateY(18px)" : "translateY(0)" }} />
+          )) : Array.from({ length: 12 }, (_, index) => (
+            <span key={index} style={{ width: 58, height: 86, borderRadius: 7,
+              border: `1px solid ${[C.mcu, C.spider, C.doom, C.gold][index % 4]}55`,
+              background: `linear-gradient(160deg, ${[C.mcu, C.spider, C.doom, C.gold][index % 4]}44, #151129)`,
+              opacity: .45, transform: index % 2 ? "translateY(18px)" : "translateY(0)" }} />
+          ))}
+        </div>
+
+        <div aria-hidden style={{ position: "absolute", left: 24, right: 24, bottom: 28, height: 3,
+          background: `${C.text}1C`, borderRadius: 999, overflow: "hidden" }}>
+          <span style={{ display: "block", height: "100%", width: "100%",
+            background: `linear-gradient(90deg, ${C.mcu}, ${C.spider}, ${C.doom}, ${C.gold})`,
+            transformOrigin: "left", animation: "introVideoProgress 12s linear infinite" }} />
+        </div>
+
+        {frames.map((frame, index) => {
+          const Icon = frame.icon;
+          return (
+            <div key={frame.title} className="intro-caption"
+              style={{ position: "absolute", left: 20, right: 20, top: 88,
+                animationDelay: `${index * 3}s` }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 9,
+                padding: "8px 10px", borderRadius: 11, border: `1px solid ${frame.color}77`,
+                background: "#070510D9", boxShadow: `0 0 24px ${frame.color}22` }}>
+                <span style={{ width: 32, height: 32, borderRadius: 10, display: "grid", placeItems: "center",
+                  background: `${frame.color}22`, color: frame.color, flexShrink: 0 }}>
+                  <Icon size={18} color={frame.color} />
+                </span>
+                <span style={{ textAlign: "left", minWidth: 0 }}>
+                  <span className="osw" style={{ display: "block", color: C.text, fontSize: 19,
+                    lineHeight: 1, fontWeight: 700 }}>{frame.title}</span>
+                  <span style={{ display: "block", color: C.muted, fontSize: 12, lineHeight: 1.35, marginTop: 3 }}>
+                    {frame.text}
+                  </span>
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function LoginScreen({
-  email, password, message, syncState, loading,
+  email, password, message, syncState, loading, posters,
   onEmail, onPassword, onSignIn, onSignUp, onGoogle, onLifetime, onGuest,
 }) {
   const inputStyle = {
@@ -689,6 +769,14 @@ function LoginScreen({
         .inr { font-family: 'Inter', system-ui, sans-serif; }
         @keyframes twinkle { 0%,100% { opacity: var(--o); } 50% { opacity: calc(var(--o) * .25); } }
         @keyframes pulseGlow { 0%,100% { filter: drop-shadow(0 0 8px currentColor); } 50% { filter: drop-shadow(0 0 20px currentColor); } }
+        @keyframes introPosterDrift { 0% { transform: translateX(12px); } 100% { transform: translateX(-330px); } }
+        @keyframes introCaption {
+          0%, 4% { opacity: 0; transform: translateY(12px) scale(.98); }
+          7%, 22% { opacity: 1; transform: translateY(0) scale(1); }
+          26%, 100% { opacity: 0; transform: translateY(-8px) scale(.99); }
+        }
+        @keyframes introVideoProgress { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+        .intro-caption { opacity: 0; animation: introCaption 12s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
       `}</style>
 
@@ -705,9 +793,9 @@ function LoginScreen({
         ))}
       </div>
 
-      <div className="inr" style={{ minHeight: "100vh", display: "grid", placeItems: "center",
-        padding: 18, position: "relative", zIndex: 1 }}>
-        <main style={{ width: "min(100%, 430px)" }}>
+      <div className="inr" style={{ minHeight: "100vh", display: "flex", alignItems: "center",
+        justifyContent: "center", padding: 18, position: "relative", zIndex: 1 }}>
+        <main style={{ width: "calc(100vw - 36px)", maxWidth: 430 }}>
           <div style={{ textAlign: "center", marginBottom: 18 }}>
             <I.zap size={32} color={C.gold} style={{ animation: "pulseGlow 2.8s ease-in-out infinite", color: C.gold }} />
             <div className="osw" style={{ marginTop: 8, fontSize: 12, letterSpacing: 4, color: C.gold, textTransform: "uppercase" }}>
@@ -733,6 +821,8 @@ function LoginScreen({
               </span>
             </button>
           </div>
+
+          <IntroVideo posters={posters} />
 
           <form onSubmit={onSignIn}
             style={{ border: `1px solid ${C.line}`, borderRadius: 16, padding: 16,
@@ -1659,6 +1749,7 @@ function App() {
         message={authMessage}
         syncState={!authReady ? "verificando sessao" : syncState}
         loading={authLoading || !authReady}
+        posters={posters}
         onEmail={setAuthEmail}
         onPassword={setAuthPassword}
         onSignIn={signIn}

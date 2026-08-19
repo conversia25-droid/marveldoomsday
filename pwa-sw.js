@@ -1,4 +1,4 @@
-const CACHE_NAME = "rota-doomsday-v4";
+const CACHE_NAME = "rota-doomsday-v5";
 const RUNTIME_CACHE = "rota-doomsday-runtime-v1";
 const STATIC_ASSETS = [
   "/",
