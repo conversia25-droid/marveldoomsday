@@ -54,6 +54,18 @@ Deploy sugerido:
     supabase functions deploy asaas-check-pix
     supabase functions deploy asaas-webhook --no-verify-jwt
 
+Deploy automatico pelo GitHub:
+
+1. No Supabase, gere um token em https://supabase.com/dashboard/account/tokens
+2. No GitHub do projeto, va em **Settings -> Secrets and variables -> Actions**
+3. Crie o secret:
+
+       SUPABASE_ACCESS_TOKEN=token_criado_no_supabase
+
+4. Ao fazer push para `main` ou `master`, o workflow `.github/workflows/deploy-supabase-functions.yml` publica as Edge Functions no projeto `keqvvdbaninwqwktwuyi`.
+
+As chaves `ASAAS_API_KEY`, `ASAAS_ENV` e `ASAAS_WEBHOOK_TOKEN` continuam somente nos Secrets das Edge Functions do Supabase. Nao coloque essas chaves no GitHub.
+
 No Asaas, configure o webhook de pagamentos:
 
     URL: https://keqvvdbaninwqwktwuyi.supabase.co/functions/v1/asaas-webhook
