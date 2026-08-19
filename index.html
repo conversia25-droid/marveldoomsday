@@ -2091,9 +2091,6 @@ function App() {
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontSize: 12.5, color: C.muted }}>
               Essenciais p/ o Doomsday: <b style={{ color: doomReady ? C.doom : C.gold }}>{stats.essD}/{stats.essT}</b>
-              <span style={{ marginLeft: 8, color: routeSource === "supabase" ? C.doom : C.muted }}>
-                · {routeSource === "supabase" ? "Supabase" : "local"}
-              </span>
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {!pwaInstalled && (
