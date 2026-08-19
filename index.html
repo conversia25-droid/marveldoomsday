@@ -1633,8 +1633,18 @@ function App() {
     setSyncState(error ? "falha ao salvar" : "salvo");
   };
 
+  const movieTitleById = (id) => {
+    for (const branch of routeBranches) {
+      const item = branch.items.find((it) => it.id === id);
+      if (item) return item.t;
+    }
+    return "este titulo";
+  };
+
   const toggle = (id) => {
     if (!requestPremiumCheckout(`Para marcar filmes e salvar progresso, ative o acesso vitalício ${LIFETIME_PRICE_LABEL} no Pix.`)) return;
+    const alreadyWatched = watched.has(id);
+    if (alreadyWatched && !confirm(`Desmarcar "${movieTitleById(id)}" como assistido?`)) return;
     setWatched((prev) => {
       const next = new Set(prev);
       next.has(id) ? next.delete(id) : next.add(id);
