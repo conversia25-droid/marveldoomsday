@@ -25,6 +25,7 @@ O app ja vem com manifest, icones e service worker. Em HTTPS, como no dominio do
 - No Chrome/Android/desktop, o botao **Instalar** aparece dentro do app quando o navegador liberar.
 - No iPhone/iPad, use **Compartilhar -> Adicionar a Tela de Inicio**.
 - O cache offline cobre a tela principal, manifest, icones, `config.js` e `posters.json`. Login, sincronizacao e capas externas continuam dependendo de internet.
+- O app mostra um aviso forte de instalacao na tela inicial e, ao entrar sem estar instalado, abre um convite para instalar. Quando o navegador permite, o botao chama a instalacao nativa; no iPhone ele mostra os passos manuais.
 
 ## Pagamento premium via Asaas
 
