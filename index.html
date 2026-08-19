@@ -601,6 +601,19 @@ function isIosDevice() {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent || "");
 }
 
+function isIosSafariBrowser() {
+  const ua = window.navigator.userAgent || "";
+  const vendor = window.navigator.vendor || "";
+  return isIosDevice()
+    && /safari/i.test(ua)
+    && /apple/i.test(vendor)
+    && !/(crios|fxios|edgios|opios|instagram|fbav|fban|line|twitter|whatsapp|linkedin)/i.test(ua);
+}
+
+function getCleanAppUrl() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
 function AuthBox({
   enabled, session, profile, syncState, onSignOut, onOpenLogin, onEditProfile, onBuyLifetime,
 }) {
@@ -703,7 +716,10 @@ function InstallInlinePrompt({ canInstall, onInstall, onOpenGuide }) {
 }
 
 function PwaInstallModal({ canInstall, onInstall, onContinue, onClose }) {
+  const [linkMessage, setLinkMessage] = useState("");
   const ios = isIosDevice();
+  const iosSafari = isIosSafariBrowser();
+  const iosNeedsSafari = ios && !iosSafari;
   const canUseNativeInstall = canInstall && !ios;
   const viewportWidth = Math.floor(Math.min(...[
     window.visualViewport?.width,
@@ -712,7 +728,37 @@ function PwaInstallModal({ canInstall, onInstall, onContinue, onClose }) {
     window.screen?.width,
   ].filter((value) => Number.isFinite(value) && value > 0)));
   const modalWidth = Math.min(430, Math.max(280, viewportWidth - 32));
-  const compactActions = modalWidth < 350;
+  const compactActions = modalWidth < 390;
+  const installUrl = getCleanAppUrl();
+
+  const copyInstallLink = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
+      await navigator.clipboard.writeText(installUrl);
+      setLinkMessage("Link copiado. Cole no Safari e adicione à Tela de Início.");
+    } catch (_) {
+      window.prompt("Copie este link e abra no Safari:", installUrl);
+      setLinkMessage("Depois de abrir no Safari, toque em Compartilhar.");
+    }
+  };
+
+  const tryOpenSafari = () => {
+    window.open(installUrl, "_blank", "noopener,noreferrer");
+    setLinkMessage("Se continuar neste app, copie o link e cole no Safari.");
+  };
+
+  const steps = iosNeedsSafari
+    ? [
+      ["1", "Toque em Abrir link e escolha Safari, se aparecer."],
+      ["2", "Se não aparecer, copie o link e cole no Safari."],
+      ["3", "No Safari, use Compartilhar > Adicionar à Tela de Início."],
+    ]
+    : [
+      ["1", ios ? "Toque em Compartilhar no Safari." : canUseNativeInstall ? "Toque em Instalar app." : "Abra o menu do navegador."],
+      ["2", ios ? "Escolha Adicionar à Tela de Início." : "Confirme a instalação quando aparecer."],
+      ["3", "Entre pelo ícone instalado nas próximas maratonas."],
+    ];
+
   return (
     <div role="dialog" aria-modal="true" aria-label="Instalar aplicativo"
       onClick={onClose}
@@ -734,7 +780,9 @@ function PwaInstallModal({ canInstall, onInstall, onContinue, onClose }) {
               Instale a Rota Doomsday
             </div>
             <div style={{ color: C.muted, fontSize: 12.5, marginTop: 5, lineHeight: 1.45 }}>
-              A experiencia fica melhor como app: abre em tela cheia, fica na tela inicial e deixa a rota sempre a mao.
+              {iosNeedsSafari
+                ? "No iPhone, a instalação fica mais confiável pelo Safari."
+                : "A experiencia fica melhor como app: abre em tela cheia, fica na tela inicial e deixa a rota sempre a mao."}
             </div>
           </div>
           <button type="button" onClick={onClose} aria-label="Fechar aviso de instalacao"
@@ -745,11 +793,7 @@ function PwaInstallModal({ canInstall, onInstall, onContinue, onClose }) {
         </div>
 
         <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
-          {[
-            ["1", ios ? "Toque em Compartilhar no Safari." : canUseNativeInstall ? "Toque em Instalar app." : "Abra o menu do navegador."],
-            ["2", ios ? "Escolha Adicionar à Tela de Início." : "Confirme a instalação quando aparecer."],
-            ["3", "Entre pelo ícone instalado nas próximas maratonas."],
-          ].map(([n, text]) => (
+          {steps.map(([n, text]) => (
             <div key={n} style={{ display: "flex", alignItems: "center", gap: 9,
               padding: "8px 10px", borderRadius: 10, background: "#07051099", border: `1px solid ${C.line}` }}>
               <span className="osw" style={{ width: 24, height: 24, borderRadius: 999, display: "grid",
@@ -759,6 +803,14 @@ function PwaInstallModal({ canInstall, onInstall, onContinue, onClose }) {
           ))}
         </div>
 
+        {linkMessage && (
+          <div style={{ marginTop: 10, padding: "9px 10px", borderRadius: 10,
+            border: `1px solid ${C.doom}55`, background: `${C.doom}10`, color: C.doom,
+            fontSize: 12, lineHeight: 1.35 }}>
+            {linkMessage}
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 15, flexWrap: "wrap",
           flexDirection: compactActions ? "column-reverse" : "row" }}>
           <button type="button" onClick={onContinue}
@@ -767,6 +819,22 @@ function PwaInstallModal({ canInstall, onInstall, onContinue, onClose }) {
               width: compactActions ? "100%" : "auto" }}>
             Continuar no navegador
           </button>
+          {iosNeedsSafari && (
+            <button type="button" onClick={copyInstallLink}
+              style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.text,
+                borderRadius: 9, padding: "9px 12px", cursor: "pointer", fontSize: 12.5,
+                width: compactActions ? "100%" : "auto" }}>
+              Copiar link
+            </button>
+          )}
+          {iosNeedsSafari && (
+            <button type="button" onClick={tryOpenSafari}
+              style={{ border: "none", background: C.doom, color: C.void, borderRadius: 9,
+                padding: "9px 13px", cursor: "pointer", fontWeight: 800,
+                width: compactActions ? "100%" : "auto" }}>
+              Abrir no Safari
+            </button>
+          )}
           {canUseNativeInstall && (
             <button type="button" onClick={onInstall}
               style={{ border: "none", background: C.doom, color: C.void, borderRadius: 9,
