@@ -26,7 +26,7 @@ O app ja vem com manifest, icones e service worker. Em HTTPS, como no dominio do
 - No iPhone/iPad, use **Compartilhar -> Adicionar a Tela de Inicio**.
 - O cache offline cobre a tela principal, manifest, icones, `config.js` e `posters.json`. Login, sincronizacao e capas externas continuam dependendo de internet.
 - O app mostra um aviso forte de instalacao na tela inicial e, ao entrar sem estar instalado, abre um convite para instalar. Quando o navegador permite, o botao chama a instalacao nativa; no iPhone ele mostra os passos manuais.
-- Se o usuario abrir pelo iPhone fora do Safari, o convite mostra um botao para tentar abrir no Safari e um fallback para copiar o link.
+- Se o usuario abrir pelo iPhone fora do Safari, o convite destaca o botao para copiar o link e abrir manualmente no Safari.
 
 ## Pagamento premium via Asaas
 
