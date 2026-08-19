@@ -26,9 +26,42 @@ O app ja vem com manifest, icones e service worker. Em HTTPS, como no dominio do
 - No iPhone/iPad, use **Compartilhar -> Adicionar a Tela de Inicio**.
 - O cache offline cobre a tela principal, manifest, icones, `config.js` e `posters.json`. Login, sincronizacao e capas externas continuam dependendo de internet.
 
-## Pagamento premium
+## Pagamento premium via Asaas
 
-O acesso vitalicio custa **R$9,90** e sera vendido somente por **Pix**. Para liberar automaticamente, o proximo passo e integrar Mercado Pago ou Asaas com webhook, gravando o usuario como premium no Supabase depois da confirmacao do pagamento.
+O acesso vitalicio custa **R$9,99** e sera vendido somente por **Pix**. No app, o usuario logado gera um QR Code Pix pelo Asaas; quando o pagamento e recebido, o webhook marca `premium_lifetime = true` no Supabase.
+
+Rode o schema completo ou, se o restante do banco ja estiver pronto, rode apenas:
+
+    supabase/payment-asaas.sql
+
+Secrets necessarios nas Edge Functions do Supabase:
+
+    ASAAS_API_KEY=sua_chave_asaas
+    ASAAS_ENV=sandbox
+    ASAAS_WEBHOOK_TOKEN=um_token_forte_entre_32_e_255_caracteres
+
+Use `ASAAS_ENV=production` quando trocar para a conta real. A chave do Asaas fica somente nas Edge Functions; nunca coloque essa chave no `index.html`, no `config.js`, no GitHub ou em variavel `NEXT_PUBLIC`.
+
+Funcoes criadas:
+
+    supabase/functions/asaas-create-pix
+    supabase/functions/asaas-check-pix
+    supabase/functions/asaas-webhook
+
+Deploy sugerido:
+
+    supabase functions deploy asaas-create-pix
+    supabase functions deploy asaas-check-pix
+    supabase functions deploy asaas-webhook --no-verify-jwt
+
+No Asaas, configure o webhook de pagamentos:
+
+    URL: https://keqvvdbaninwqwktwuyi.supabase.co/functions/v1/asaas-webhook
+    API Version: 3
+    Auth Token: o mesmo valor de ASAAS_WEBHOOK_TOKEN
+    Eventos: PAYMENT_RECEIVED, PAYMENT_REFUNDED
+
+O endpoint valida o token enviado pelo Asaas no header `asaas-access-token`. O CPF/CNPJ digitado pelo usuario e enviado ao Asaas para criar o cliente/cobranca, mas nao fica salvo no banco do app.
 
 ## Gerar capas com TMDB
 

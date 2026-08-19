@@ -37,6 +37,8 @@ const TMDB_TOKEN = ""; // use só em ambiente privado; em produção prefira ger
 const AVATAR_BUCKET = "avatars";
 const AVATAR_MAX_SIZE = 2 * 1024 * 1024;
 const AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const PROFILE_SELECT = "id,email,display_name,avatar_url,bio,share_public,role,premium_lifetime,premium_since,asaas_customer_id";
+const LIFETIME_PRICE_LABEL = "R$9,99";
 /* ================================================== */
 
 const C = {
@@ -553,6 +555,9 @@ function profileFromSession(session) {
     avatar_url: meta.avatar_url || meta.picture || "",
     bio: "",
     share_public: false,
+    premium_lifetime: false,
+    premium_since: null,
+    asaas_customer_id: "",
   };
 }
 
@@ -567,8 +572,27 @@ function profileToForm(profile, session) {
   };
 }
 
+function onlyDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function formatCpfCnpj(value) {
+  const digits = onlyDigits(value).slice(0, 14);
+  if (digits.length <= 11) {
+    return digits
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+  return digits
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
+
 function AuthBox({
-  enabled, session, profile, syncState, onSignOut, onOpenLogin, onEditProfile,
+  enabled, session, profile, syncState, onSignOut, onOpenLogin, onEditProfile, onBuyLifetime,
 }) {
   if (!enabled) {
     return (
@@ -582,6 +606,7 @@ function AuthBox({
     const fallback = profileFromSession(session);
     const displayName = profile?.display_name || fallback.display_name || session.user.email;
     const avatarUrl = profile?.avatar_url || fallback.avatar_url;
+    const isPremium = !!profile?.premium_lifetime;
     const initial = (displayName || session.user.email || "?").trim().slice(0, 1).toUpperCase();
     return (
       <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.line}`,
@@ -597,8 +622,18 @@ function AuthBox({
         <span style={{ flex: 1, minWidth: 180, fontSize: 12.5, color: C.muted }}>
           Online · <b style={{ color: C.text }}>{displayName}</b>
           <span style={{ display: "block", marginTop: 1 }}>{session.user.email}</span>
+          <span style={{ display: "block", marginTop: 1, color: isPremium ? C.doom : C.gold }}>
+            {isPremium ? "Premium vitalicio ativo" : `Premium ${LIFETIME_PRICE_LABEL} no Pix`}
+          </span>
           {syncState && <span style={{ color: C.doom }}> · {syncState}</span>}
         </span>
+        {!isPremium && (
+          <button type="button" onClick={onBuyLifetime}
+            style={{ border: `1px solid ${C.gold}88`, background: `${C.gold}18`, color: C.text,
+              borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 12 }}>
+            Comprar
+          </button>
+        )}
         <button type="button" onClick={onEditProfile}
           style={{ border: `1px solid ${C.doom}77`, background: `${C.doom}18`, color: C.text,
             borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 12 }}>
@@ -690,7 +725,7 @@ function LoginScreen({
                 borderRadius: 999, padding: "8px 13px", display: "inline-flex", alignItems: "center",
                 gap: 9, cursor: "pointer", boxShadow: `0 0 18px ${C.doom}22` }}>
               <span className="osw" style={{ color: C.doom, fontSize: 18, fontWeight: 700, lineHeight: 1 }}>
-                R$9,90
+                {LIFETIME_PRICE_LABEL}
               </span>
               <span style={{ textAlign: "left", fontSize: 11.5, color: C.muted, lineHeight: 1.2 }}>
                 Acesso vitalício<br />
@@ -743,7 +778,7 @@ function LoginScreen({
               Entrar sem conta
             </button>
             <div style={{ marginTop: 4, textAlign: "center", color: C.gold, fontSize: 11.5, lineHeight: 1.4 }}>
-              Premium de lançamento: R$9,90 no Pix, sem mensalidade.
+              Premium de lançamento: {LIFETIME_PRICE_LABEL} no Pix, sem mensalidade.
             </div>
           </form>
         </main>
@@ -850,6 +885,130 @@ function ProfileModal({ form, message, saving, uploadingAvatar, onChange, onAvat
   );
 }
 
+function PixPaymentModal({ form, pix, message, loading, isPremium, onChange, onCreate, onCopy, onCheck, onClose }) {
+  const inputStyle = {
+    width: "100%", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 11px",
+    background: C.void, color: C.text, fontSize: 14, outline: "none",
+  };
+  const labelStyle = { display: "block", color: C.muted, fontSize: 12, margin: "11px 0 6px" };
+  const payload = pix?.pix?.payload || "";
+  const image = pix?.pix?.encodedImage || "";
+  const expiration = pix?.pix?.expirationDate || "";
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Pagamento Pix"
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 30, display: "flex", alignItems: "center",
+        justifyContent: "center", padding: 18, background: "#05030CCC", backdropFilter: "blur(10px)" }}>
+      <form onSubmit={onCreate} onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(92vw, 440px)", maxHeight: "92vh", overflow: "auto",
+          border: `1px solid ${C.line}`, borderRadius: 16, padding: 16,
+          background: `linear-gradient(160deg, ${C.panel2}, ${C.panel})`, boxShadow: "0 18px 70px #000000AA" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 14, background: `${C.doom}18`,
+            border: `1px solid ${C.doom}66`, display: "flex", alignItems: "center",
+            justifyContent: "center", color: C.doom, flexShrink: 0 }}>
+            <I.zap size={22} color={C.doom} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="osw" style={{ fontSize: 23, fontWeight: 700, lineHeight: 1 }}>
+              Acesso vitalício
+            </div>
+            <div style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+              {LIFETIME_PRICE_LABEL} no Pix, pago uma unica vez.
+            </div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar pagamento"
+            style={{ width: 34, height: 34, borderRadius: 999, border: `1px solid ${C.line}`,
+              background: "transparent", color: C.muted, cursor: "pointer", flexShrink: 0 }}>
+            ×
+          </button>
+        </div>
+
+        {isPremium ? (
+          <div style={{ marginTop: 14, border: `1px solid ${C.doom}66`, borderRadius: 12,
+            padding: 12, background: `${C.doom}12`, color: C.doom, fontSize: 13.5, lineHeight: 1.5 }}>
+            Pagamento confirmado. Seu acesso premium vitalício está ativo.
+          </div>
+        ) : !pix ? (
+          <>
+            <label style={labelStyle}>Nome para a cobrança</label>
+            <input value={form.name} onChange={(e) => onChange("name", e.target.value)}
+              maxLength={120} placeholder="Seu nome" style={inputStyle} />
+
+            <label style={labelStyle}>CPF ou CNPJ</label>
+            <input value={form.cpfCnpj} onChange={(e) => onChange("cpfCnpj", formatCpfCnpj(e.target.value))}
+              inputMode="numeric" autoComplete="off" maxLength={18}
+              placeholder="000.000.000-00" style={inputStyle} />
+
+            <div style={{ marginTop: 9, color: C.muted, fontSize: 11.5, lineHeight: 1.45 }}>
+              O documento é enviado ao Asaas para gerar o Pix e não fica salvo neste app.
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ display: "grid", placeItems: "center", marginTop: 15 }}>
+              {image ? (
+                <img src={`data:image/png;base64,${image}`} alt="QR Code Pix"
+                  style={{ width: 210, maxWidth: "100%", aspectRatio: "1 / 1", borderRadius: 12,
+                    background: "#fff", padding: 8, border: `1px solid ${C.text}22` }} />
+              ) : (
+                <div style={{ width: 210, maxWidth: "100%", aspectRatio: "1 / 1", borderRadius: 12,
+                  display: "grid", placeItems: "center", border: `1px dashed ${C.line}`,
+                  color: C.muted, fontSize: 12, textAlign: "center", padding: 12 }}>
+                  QR Code indisponivel. Use o Pix copia e cola.
+                </div>
+              )}
+            </div>
+
+            <label style={labelStyle}>Pix copia e cola</label>
+            <textarea readOnly value={payload}
+              style={{ ...inputStyle, minHeight: 84, resize: "vertical", lineHeight: 1.35, fontSize: 12 }} />
+            {expiration && (
+              <div style={{ marginTop: 7, color: C.muted, fontSize: 11.5 }}>
+                Validade informada pelo Asaas: {expiration}
+              </div>
+            )}
+          </>
+        )}
+
+        {message && (
+          <div style={{ marginTop: 10, color: message.includes("confirmado") || message.includes("ativo") ? C.doom : C.gold,
+            fontSize: 12.5, lineHeight: 1.45 }}>
+            {message}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 15, flexWrap: "wrap" }}>
+          {!pix && !isPremium ? (
+            <button type="submit" disabled={loading}
+              style={{ border: "none", background: C.doom, color: C.void, borderRadius: 9,
+                padding: "9px 13px", cursor: loading ? "default" : "pointer", fontWeight: 800,
+                opacity: loading ? .7 : 1 }}>
+              {loading ? "Gerando Pix..." : `Gerar Pix ${LIFETIME_PRICE_LABEL}`}
+            </button>
+          ) : !isPremium ? (
+            <>
+              <button type="button" onClick={onCopy} disabled={!payload}
+                style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.text,
+                  borderRadius: 9, padding: "9px 12px", cursor: payload ? "pointer" : "default",
+                  opacity: payload ? 1 : .6 }}>
+                Copiar Pix
+              </button>
+              <button type="button" onClick={onCheck} disabled={loading}
+                style={{ border: "none", background: C.doom, color: C.void, borderRadius: 9,
+                  padding: "9px 13px", cursor: loading ? "default" : "pointer", fontWeight: 800,
+                  opacity: loading ? .7 : 1 }}>
+                {loading ? "Verificando..." : "Já paguei"}
+              </button>
+            </>
+          ) : null}
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function Cover({ branch, it, posters, onPreview }) {
   const p = posters[it.id];
   if (p) {
@@ -897,6 +1056,11 @@ function App() {
   const [profileMessage, setProfileMessage] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileUploading, setProfileUploading] = useState(false);
+  const [purchaseOpen, setPurchaseOpen] = useState(false);
+  const [purchaseForm, setPurchaseForm] = useState({ name: "", cpfCnpj: "" });
+  const [purchaseMessage, setPurchaseMessage] = useState("");
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [pixPayment, setPixPayment] = useState(null);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [canInstallPwa, setCanInstallPwa] = useState(false);
   const [watched, setWatched] = useState(() => {
@@ -956,6 +1120,9 @@ function App() {
       setProfileOpen(false);
       setProfileMessage("");
       setProfileUploading(false);
+      setPurchaseOpen(false);
+      setPurchaseMessage("");
+      setPixPayment(null);
       setProfileForm(profileToForm(null, session));
       return;
     }
@@ -965,7 +1132,7 @@ function App() {
       const fallback = profileFromSession(session);
       const { data, error } = await routeClient
         .from("profiles")
-        .select("id,email,display_name,avatar_url,bio,share_public,role")
+        .select(PROFILE_SELECT)
         .eq("id", session.user.id)
         .maybeSingle();
 
@@ -1188,8 +1355,123 @@ function App() {
     }
   };
 
+  const refreshProfile = async () => {
+    if (!routeClient || !session) return null;
+    const fallback = profileFromSession(session);
+    const { data, error } = await routeClient
+      .from("profiles")
+      .select(PROFILE_SELECT)
+      .eq("id", session.user.id)
+      .maybeSingle();
+    if (error) return null;
+    const next = { ...fallback, ...(data || {}) };
+    setProfile(next);
+    setProfileForm(profileToForm(next, session));
+    return next;
+  };
+
+  const openPurchase = () => {
+    if (!routeClient) {
+      setAuthMessage("Configure o Supabase para gerar pagamentos Pix.");
+      return;
+    }
+    if (!session) {
+      setGuestMode(false);
+      setAuthMessage(`Entre primeiro para vincular o acesso vitalício ${LIFETIME_PRICE_LABEL} a sua conta.`);
+      return;
+    }
+    if (profile?.premium_lifetime) {
+      setPurchaseMessage("Seu acesso premium vitalício ja esta ativo.");
+      setPixPayment(null);
+    } else {
+      const fallback = profileFromSession(session);
+      setPurchaseForm({
+        name: profile?.display_name || fallback.display_name || session.user.email || "",
+        cpfCnpj: "",
+      });
+      setPurchaseMessage("");
+      setPixPayment(null);
+    }
+    setPurchaseOpen(true);
+  };
+
   const showLifetimeAccess = () => {
-    setAuthMessage("Acesso vitalício R$9,90 no Pix: próximo passo é gerar QR Code e liberar premium automaticamente apos o pagamento.");
+    openPurchase();
+  };
+
+  const changePurchaseField = (field, value) => {
+    setPurchaseForm((current) => ({ ...current, [field]: value }));
+    setPurchaseMessage("");
+  };
+
+  const createPixPayment = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!routeClient || !session) return;
+
+    const cpfCnpj = onlyDigits(purchaseForm.cpfCnpj);
+    if (!purchaseForm.name.trim()) {
+      setPurchaseMessage("Informe o nome para a cobranca.");
+      return;
+    }
+    if (![11, 14].includes(cpfCnpj.length)) {
+      setPurchaseMessage("Informe um CPF ou CNPJ valido.");
+      return;
+    }
+
+    setPurchaseLoading(true);
+    setPurchaseMessage("Gerando Pix no Asaas...");
+    const { data, error } = await routeClient.functions.invoke("asaas-create-pix", {
+      body: { payerName: purchaseForm.name.trim(), cpfCnpj },
+    });
+    setPurchaseLoading(false);
+
+    if (error || data?.error) {
+      setPurchaseMessage(data?.error || error?.message || "Nao foi possivel gerar o Pix.");
+      return;
+    }
+
+    if (data?.premium) {
+      await refreshProfile();
+      setPurchaseMessage("Seu acesso premium vitalício ja esta ativo.");
+      return;
+    }
+
+    setPixPayment(data);
+    setPurchaseMessage("Pix gerado. Pague pelo QR Code ou copia e cola.");
+  };
+
+  const copyPixPayload = async () => {
+    const payload = pixPayment?.pix?.payload || "";
+    if (!payload) return;
+    try {
+      await navigator.clipboard.writeText(payload);
+      setPurchaseMessage("Pix copia e cola copiado.");
+    } catch {
+      setPurchaseMessage("Nao consegui copiar automaticamente. Selecione e copie o codigo Pix.");
+    }
+  };
+
+  const checkPixPayment = async () => {
+    if (!routeClient || !session || !pixPayment?.purchase_id) return;
+    setPurchaseLoading(true);
+    setPurchaseMessage("Verificando pagamento...");
+    const { data, error } = await routeClient.functions.invoke("asaas-check-pix", {
+      body: { purchaseId: pixPayment.purchase_id },
+    });
+    setPurchaseLoading(false);
+
+    if (error || data?.error) {
+      setPurchaseMessage(data?.error || error?.message || "Nao foi possivel verificar o pagamento.");
+      return;
+    }
+
+    if (data?.paid || data?.premium) {
+      await refreshProfile();
+      setPurchaseMessage("Pagamento confirmado. Premium vitalício ativo.");
+      return;
+    }
+
+    setPurchaseMessage(`Ainda nao recebemos o Pix. Status: ${data?.status || "pendente"}.`);
   };
 
   const changeProfileField = (field, value) => {
@@ -1284,6 +1566,9 @@ function App() {
     setProfile(null);
     setProfileOpen(false);
     setProfileUploading(false);
+    setPurchaseOpen(false);
+    setPurchaseMessage("");
+    setPixPayment(null);
     setSyncState("modo local");
   };
 
@@ -1436,6 +1721,7 @@ function App() {
             onSignOut={signOut}
             onOpenLogin={() => { setGuestMode(false); setAuthMessage(""); }}
             onEditProfile={openProfile}
+            onBuyLifetime={openPurchase}
           />
         </div>
 
@@ -1706,6 +1992,21 @@ function App() {
           onAvatarFile={uploadAvatar}
           onSave={saveProfile}
           onClose={() => setProfileOpen(false)}
+        />
+      )}
+
+      {purchaseOpen && session && (
+        <PixPaymentModal
+          form={purchaseForm}
+          pix={pixPayment}
+          message={purchaseMessage}
+          loading={purchaseLoading}
+          isPremium={!!profile?.premium_lifetime}
+          onChange={changePurchaseField}
+          onCreate={createPixPayment}
+          onCopy={copyPixPayload}
+          onCheck={checkPixPayment}
+          onClose={() => setPurchaseOpen(false)}
         />
       )}
     </div>
