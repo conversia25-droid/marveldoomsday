@@ -841,6 +841,44 @@ function PwaInstallModal({ canInstall, onInstall, onContinue, onClose }) {
   );
 }
 
+function ConvergenceCard({ doomReady, essDone, done, total }) {
+  return (
+    <div style={{ margin: "4px 0 16px", position: "relative", borderRadius: 18, overflow: "hidden",
+      border: `1px solid ${doomReady ? C.doom : C.line}`,
+      background: doomReady
+        ? `radial-gradient(120% 120% at 50% 0%, ${C.doom}26, ${C.panel} 60%)`
+        : `radial-gradient(120% 120% at 50% 0%, ${C.mcu}18, ${C.panel} 60%)`,
+      boxShadow: doomReady ? `0 0 34px ${C.doom}44` : "0 10px 30px #00000055" }}>
+      <div aria-hidden style={{ position: "absolute", inset: 0, opacity: .07,
+        backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "10px 10px" }} />
+      <div style={{ padding: "22px 18px", textAlign: "center", position: "relative" }}>
+        <I.zap size={24} color={doomReady ? C.doom : C.gold} style={{ animation: "pulseGlow 2.6s ease-in-out infinite", color: doomReady ? C.doom : C.gold }} />
+        <div className="osw" style={{ fontSize: 12, letterSpacing: 3, color: C.gold, textTransform: "uppercase", marginTop: 6 }}>
+          A convergência
+        </div>
+        <div className="osw" style={{ fontSize: 27, fontWeight: 700, margin: "2px 0 6px", letterSpacing: 1 }}>
+          VINGADORES: DOOMSDAY
+        </div>
+        <p style={{ fontSize: 13, color: C.muted, margin: "0 auto 12px", maxWidth: 390 }}>
+          Três universos colidem: Vingadores, Novos Vingadores, Quarteto Fantástico,
+          os Wakandanos e os X‑Men originais — contra o Doutor Destino.
+        </p>
+        <div style={{ maxWidth: 320, margin: "0 auto" }}>
+          <Bar frac={essDone} color={doomReady ? C.doom : C.gold} />
+        </div>
+        <div style={{ fontSize: 12.5, color: doomReady ? C.doom : C.muted, marginTop: 8, fontWeight: 600 }}>
+          {doomReady ? "✓ Essenciais concluídos — você está pronto pra estreia"
+                     : `${done}/${total} essenciais assistidos`}
+        </div>
+      </div>
+      <div style={{ borderTop: `1px dashed ${C.line}`, padding: "10px 18px", textAlign: "center",
+        fontSize: 11.5, color: C.muted, position: "relative" }}>
+        e a saga fecha em <b style={{ color: C.text }}>Vingadores: Secret Wars</b> · 17 · 12 · 2027
+      </div>
+    </div>
+  );
+}
+
 function IntroVideo({ posters = {} }) {
   const frames = [
     { title: "Rota ate Doomsday", text: "A ordem certa para chegar no filme sem se perder.", icon: I.branch, color: C.mcu },
@@ -2066,6 +2104,13 @@ function App() {
           <Countdown />
         </header>
 
+        <ConvergenceCard
+          doomReady={doomReady}
+          essDone={essDone}
+          done={stats.essD}
+          total={stats.essT}
+        />
+
         {view === "arvore" && (
           <TreeMap branchFrac={branchFrac} onPick={scrollTo} doomReady={doomReady} essDone={essDone} />
         )}
@@ -2312,40 +2357,6 @@ function App() {
             </section>
           );
         })}
-
-        <div style={{ marginTop: 22, position: "relative", borderRadius: 18, overflow: "hidden",
-          border: `1px solid ${doomReady ? C.doom : C.line}`,
-          background: doomReady
-            ? `radial-gradient(120% 120% at 50% 0%, ${C.doom}26, ${C.panel} 60%)`
-            : `radial-gradient(120% 120% at 50% 0%, ${C.mcu}18, ${C.panel} 60%)`,
-          boxShadow: doomReady ? `0 0 34px ${C.doom}44` : "0 10px 30px #00000055" }}>
-          <div aria-hidden style={{ position: "absolute", inset: 0, opacity: .07,
-            backgroundImage: "radial-gradient(#fff 1px, transparent 1.4px)", backgroundSize: "10px 10px" }} />
-          <div style={{ padding: "22px 18px", textAlign: "center", position: "relative" }}>
-            <I.zap size={24} color={doomReady ? C.doom : C.gold} style={{ animation: "pulseGlow 2.6s ease-in-out infinite", color: doomReady ? C.doom : C.gold }} />
-            <div className="osw" style={{ fontSize: 12, letterSpacing: 3, color: C.gold, textTransform: "uppercase", marginTop: 6 }}>
-              A convergência
-            </div>
-            <div className="osw" style={{ fontSize: 27, fontWeight: 700, margin: "2px 0 6px", letterSpacing: 1 }}>
-              VINGADORES: DOOMSDAY
-            </div>
-            <p style={{ fontSize: 13, color: C.muted, margin: "0 auto 12px", maxWidth: 390 }}>
-              Três universos colidem: Vingadores, Novos Vingadores, Quarteto Fantástico,
-              os Wakandanos e os X‑Men originais — contra o Doutor Destino.
-            </p>
-            <div style={{ maxWidth: 320, margin: "0 auto" }}>
-              <Bar frac={essDone} color={doomReady ? C.doom : C.gold} />
-            </div>
-            <div style={{ fontSize: 12.5, color: doomReady ? C.doom : C.muted, marginTop: 8, fontWeight: 600 }}>
-              {doomReady ? "✓ Essenciais concluídos — você está pronto pra estreia"
-                         : `${stats.essD}/${stats.essT} essenciais assistidos`}
-            </div>
-          </div>
-          <div style={{ borderTop: `1px dashed ${C.line}`, padding: "10px 18px", textAlign: "center",
-            fontSize: 11.5, color: C.muted, position: "relative" }}>
-            e a saga fecha em <b style={{ color: C.text }}>Vingadores: Secret Wars</b> · 17 · 12 · 2027
-          </div>
-        </div>
 
         <p style={{ fontSize: 11, color: C.muted, textAlign: "center", marginTop: 18, lineHeight: 1.7 }}>
           Toque no card pra ver por que aquele título importa · toque na bolinha pra marcar como assistido.<br />
