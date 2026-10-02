@@ -1350,6 +1350,19 @@ function Cover({ branch, it, posters, onPreview }) {
   </div>);
 }
 
+function readCachedProgress(userId) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(`rd_watched:${userId}`) || "[]");
+    return new Set(Array.isArray(stored) ? stored.filter((id) => typeof id === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeCachedProgress(userId, items) {
+  try { localStorage.setItem(`rd_watched:${userId}`, JSON.stringify([...items])); } catch (_) {}
+}
+
 function App() {
   const [routeClient] = useState(() => createRouteClient());
   const [routeBranches, setRouteBranches] = useState(BRANCHES);
@@ -1362,7 +1375,7 @@ function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
-  const [profile, setProfile] = useState(null);
+  const [loadedProfile, setProfile] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileForm, setProfileForm] = useState(() => profileToForm(null, null));
   const [profileMessage, setProfileMessage] = useState("");
@@ -1380,9 +1393,11 @@ function App() {
   const [pwaNudgeDismissed, setPwaNudgeDismissed] = useState(() => {
     try { return sessionStorage.getItem(PWA_NUDGE_SESSION_KEY) === "1"; } catch { return false; }
   });
-  const [watched, setWatched] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem("rd_watched") || "[]")); } catch { return new Set(); }
-  });
+  const [progress, setProgress] = useState(() => ({
+    userId: routeClient ? null : "local",
+    items: routeClient ? new Set() : readCachedProgress("local"),
+    ready: !routeClient,
+  }));
   const [filter, setFilter] = useState(() => localStorage.getItem("rd_filter") || "recomendado");
   const [view, setView] = useState(() => localStorage.getItem("rd_view") || "arvore");
   const [posters, setPosters] = useState({ ...posterCache });
@@ -1392,7 +1407,23 @@ function App() {
   const toggleExpand = (id) => setExpanded((e) => (e === id ? null : id));
   const sectionRefs = useRef({});
   const premiumPromptedRef = useRef("");
-  const progressLocked = !!routeClient && (!session || !profile?.premium_lifetime);
+  const sessionUserId = session?.user?.id || null;
+  const profile = loadedProfile?.id === sessionUserId ? loadedProfile : null;
+  const hasLifetimeAccess = !!sessionUserId && profile?.premium_lifetime === true;
+  const progressOwnerId = routeClient ? (hasLifetimeAccess ? sessionUserId : null) : "local";
+  const watched = useMemo(() => (
+    progressOwnerId && progress.userId === progressOwnerId ? progress.items : new Set()
+  ), [progressOwnerId, progress]);
+  const progressReady = !!progressOwnerId && progress.userId === progressOwnerId && progress.ready;
+  const progressLocked = !!routeClient && !hasLifetimeAccess;
+  const sessionScopeRef = useRef({ userId: sessionUserId });
+  const progressScopeRef = useRef({ userId: progressOwnerId, saving: false });
+  if (sessionScopeRef.current.userId !== sessionUserId) {
+    sessionScopeRef.current = { userId: sessionUserId };
+  }
+  if (progressScopeRef.current.userId !== progressOwnerId) {
+    progressScopeRef.current = { userId: progressOwnerId, saving: false };
+  }
 
   function seedPurchaseForm(sourceProfile = profile) {
     if (!session) return;
@@ -1411,7 +1442,7 @@ function App() {
       setAuthMessage(`Entre primeiro para liberar as marcações com acesso vitalício ${LIFETIME_PRICE_LABEL}.`);
       return false;
     }
-    if (profile?.premium_lifetime) return true;
+    if (hasLifetimeAccess) return true;
     seedPurchaseForm(profile);
     setPurchaseMessage(message || `Para marcar filmes e salvar progresso, ative o acesso vitalício ${LIFETIME_PRICE_LABEL} no Pix.`);
     setPurchaseOpen(true);
@@ -1493,6 +1524,7 @@ function App() {
     }
 
     let alive = true;
+    const scope = sessionScopeRef.current;
     (async () => {
       const fallback = profileFromSession(session);
       const { data, error } = await routeClient
@@ -1501,7 +1533,7 @@ function App() {
         .eq("id", session.user.id)
         .maybeSingle();
 
-      if (!alive) return;
+      if (!alive || sessionScopeRef.current !== scope) return;
       const next = error ? fallback : { ...fallback, ...(data || {}) };
       setProfile(next);
       setProfileForm(profileToForm(next, session));
@@ -1607,73 +1639,67 @@ function App() {
     return () => { alive = false; };
   }, [routeBranches]);
 
-  const persist = (set) => {
-    try { localStorage.setItem("rd_watched", JSON.stringify([...set])); } catch (_) {}
-  };
-
   useEffect(() => {
     if (!routeClient) return;
-    if (!session) {
-      setWatched(new Set());
-      setSyncState(guestMode ? "premium para marcar" : "");
-      return;
-    }
-    if (!profile) {
-      setSyncState("verificando acesso");
-      return;
-    }
-    if (!profile.premium_lifetime) {
-      setWatched(new Set());
-      setSyncState("premium para marcar");
+    if (!progressOwnerId) {
+      setProgress({ userId: null, items: new Set(), ready: false });
+      setSyncState(sessionUserId
+        ? (profile ? "premium para marcar" : "verificando acesso")
+        : (guestMode ? "premium para marcar" : ""));
       return;
     }
 
     let alive = true;
+    const scope = progressScopeRef.current;
+    const userId = progressOwnerId;
+    setProgress({ userId, items: new Set(), ready: false });
     (async () => {
       setSyncState("carregando progresso");
-      const { data, error } = await routeClient
-        .from("watch_progress")
-        .select("movie_id")
-        .eq("user_id", session.user.id);
+      try {
+        const { data, error } = await routeClient
+          .from("watch_progress")
+          .select("movie_id")
+          .eq("user_id", userId)
+          .eq("watched", true);
 
-      if (!alive) return;
-      if (error) {
-        setSyncState("progresso local");
-        return;
+        if (!alive || progressScopeRef.current !== scope) return;
+        if (error) throw error;
+        const remote = new Set((data || []).map((row) => row.movie_id));
+        writeCachedProgress(userId, remote);
+        setProgress({ userId, items: remote, ready: true });
+        setSyncState("progresso online");
+      } catch {
+        if (!alive || progressScopeRef.current !== scope) return;
+        setProgress({ userId, items: readCachedProgress(userId), ready: false });
+        setSyncState("sem conexao para salvar");
       }
-
-      const remote = new Set((data || []).map((row) => row.movie_id));
-      const local = (() => { try { return new Set(JSON.parse(localStorage.getItem("rd_watched") || "[]")); } catch { return new Set(); } })();
-
-      if (!remote.size && local.size) {
-        const rows = [...local].map((movie_id) => ({ user_id: session.user.id, movie_id, watched: true }));
-        await routeClient.from("watch_progress").upsert(rows, { onConflict: "user_id,movie_id" });
-        if (!alive) return;
-        setWatched(local);
-      } else {
-        setWatched(remote);
-        persist(remote);
-      }
-      setSyncState("progresso online");
     })();
 
     return () => { alive = false; };
-  }, [routeClient, session && session.user.id, profile?.premium_lifetime, guestMode]);
+  }, [routeClient, progressOwnerId, sessionUserId, profile?.id, guestMode]);
 
   const saveRemoteProgress = async (id, done) => {
-    if (!routeClient || !session) return;
-    if (!profile?.premium_lifetime) return;
+    if (!routeClient) return true;
+    if (!hasLifetimeAccess || !progressReady) return false;
+    const scope = progressScopeRef.current;
     setSyncState("salvando");
-    const request = done
-      ? routeClient.from("watch_progress").upsert({
-          user_id: session.user.id,
-          movie_id: id,
-          watched: true,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id,movie_id" })
-      : routeClient.from("watch_progress").delete().eq("user_id", session.user.id).eq("movie_id", id);
-    const { error } = await request;
-    setSyncState(error ? "falha ao salvar" : "salvo");
+    try {
+      const request = done
+        ? routeClient.from("watch_progress").upsert({
+            user_id: scope.userId,
+            movie_id: id,
+            watched: true,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "user_id,movie_id" })
+        : routeClient.from("watch_progress").delete().eq("user_id", scope.userId).eq("movie_id", id);
+      const { error } = await request;
+      if (progressScopeRef.current !== scope) return false;
+      setSyncState(error ? "falha ao salvar" : "salvo");
+      return !error;
+    } catch {
+      if (progressScopeRef.current === scope) setSyncState("falha ao salvar");
+      return false;
+    }
   };
 
   const movieTitleById = (id) => {
@@ -1684,26 +1710,48 @@ function App() {
     return "este titulo";
   };
 
-  const toggle = (id) => {
+  const toggle = async (id) => {
     if (!requestPremiumCheckout(`Para marcar filmes e salvar progresso, ative o acesso vitalício ${LIFETIME_PRICE_LABEL} no Pix.`)) return;
+    if (!progressReady) return;
+    const scope = progressScopeRef.current;
+    if (scope.saving) return;
     const alreadyWatched = watched.has(id);
     if (alreadyWatched && !confirm(`Desmarcar "${movieTitleById(id)}" como assistido?`)) return;
-    setWatched((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      persist(next);
-      saveRemoteProgress(id, next.has(id));
-      return next;
-    });
+    scope.saving = true;
+    try {
+      const saved = await saveRemoteProgress(id, !alreadyWatched);
+      if (!saved || progressScopeRef.current !== scope) return;
+      const next = new Set(watched);
+      alreadyWatched ? next.delete(id) : next.add(id);
+      writeCachedProgress(scope.userId, next);
+      setProgress({ userId: scope.userId, items: next, ready: true });
+    } finally {
+      scope.saving = false;
+    }
   };
 
   const resetAll = async () => {
     if (!requestPremiumCheckout(`Para zerar e sincronizar progresso, ative o acesso vitalício ${LIFETIME_PRICE_LABEL} no Pix.`)) return;
+    if (!progressReady) return;
+    const scope = progressScopeRef.current;
+    if (scope.saving) return;
     if (!confirm("Zerar todo o progresso?")) return;
-    const n = new Set(); setWatched(n); persist(n);
-    if (routeClient && session) {
-      const { error } = await routeClient.from("watch_progress").delete().eq("user_id", session.user.id);
-      setSyncState(error ? "falha ao zerar" : "progresso zerado");
+    scope.saving = true;
+    try {
+      if (routeClient) {
+        setSyncState("zerando progresso");
+        const { error } = await routeClient.from("watch_progress").delete().eq("user_id", scope.userId);
+        if (progressScopeRef.current !== scope) return;
+        if (error) throw error;
+      }
+      const next = new Set();
+      writeCachedProgress(scope.userId, next);
+      setProgress({ userId: scope.userId, items: next, ready: true });
+      setSyncState("progresso zerado");
+    } catch {
+      if (progressScopeRef.current === scope) setSyncState("falha ao zerar");
+    } finally {
+      scope.saving = false;
     }
   };
 
@@ -1753,13 +1801,14 @@ function App() {
 
   const refreshProfile = async () => {
     if (!routeClient || !session) return null;
+    const scope = sessionScopeRef.current;
     const fallback = profileFromSession(session);
     const { data, error } = await routeClient
       .from("profiles")
       .select(PROFILE_SELECT)
       .eq("id", session.user.id)
       .maybeSingle();
-    if (error) return null;
+    if (error || sessionScopeRef.current !== scope) return null;
     const next = { ...fallback, ...(data || {}) };
     setProfile(next);
     setProfileForm(profileToForm(next, session));

@@ -133,10 +133,18 @@ Fluxo no app:
 - A primeira tela pede login por email/senha.
 - O botao **Entrar com Google** usa o provider Google do Supabase.
 - Ao entrar, o app pede o Pix se o usuario ainda nao tiver acesso vitalicio.
-- Depois do pagamento confirmado, o progresso local e enviado para `watch_progress`.
-- Depois disso, cada item marcado/desmarcado e salvo no Supabase.
+- Depois do pagamento confirmado, o app carrega somente o progresso daquela conta em `watch_progress`.
+- Cada item marcado/desmarcado e confirmado na tela depois de ser salvo no Supabase.
+- O cache de progresso usa uma chave por ID de usuario. O cache antigo compartilhado (`rd_watched`) nao e importado para contas, pois nao identifica quem marcou os filmes.
+- Ao trocar de conta ou sair, as marcacoes anteriores deixam de aparecer imediatamente. Sem conexao, o app exibe somente o cache da propria conta e bloqueia alteracoes ate carregar o progresso online.
 - Usuarios logados podem editar nome, avatar, bio e deixar o perfil publico para recursos sociais futuros.
-- O botao **Entrar sem conta** abre a rota em modo visitante e salva progresso só no navegador.
+- O botao **Entrar sem conta** abre a rota em modo visitante; as marcacoes continuam exigindo login e acesso vitalicio quando o Supabase esta configurado.
+
+Para verificar a separacao entre contas e as falhas de sincronizacao:
+
+    node --test tests/progress.test.cjs
+
+Se uma conta recebeu marcacoes de outra antes dessa correcao, consulte `watch_progress` filtrando por `user_id` no SQL Editor. Corrija somente as linhas indevidas dessa conta. Definir `watched = false` desmarca os filmes sem apagar os registros; o app atualizado ignora essas linhas ao calcular o progresso. A correcao do frontend nao consegue identificar quais marcacoes antigas foram feitas pelo dono da conta.
 
 Para habilitar/atualizar perfis, rode `supabase/schema.sql` novamente. Ele adiciona campos em `profiles` e cria a RPC `update_own_profile`, que permite ao usuario editar só os campos seguros do proprio perfil, sem mexer em `role`.
 
